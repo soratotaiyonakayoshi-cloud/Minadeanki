@@ -63,7 +63,7 @@ app.use(express.urlencoded({ extended: true }));
 // 🖼️ 画像フォルダの公開
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// 🏠 ダッシュボードのトップページ（クイズ一覧 ＆ 新規追加フォーム）
+// 🏠 ダッシュボードのトップページ（クイズ一覧 ＆ 新規追加 ＆ 編集切替）
 app.get('/', async (req, res) => {
   try {
     const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
@@ -72,32 +72,90 @@ app.get('/', async (req, res) => {
     });
     const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
 
+    // 💡 現在どのIDを編集しようとしているか（?edit_id=XX から取得。なければnull）
+    const editId = req.query.edit_id || null;
+    let targetQuiz = null;
+
+    if (editId) {
+      targetQuiz = allQuizData.find(q => q.id.toString() === editId.toString());
+    }
+
     // クイズ一覧のカードHTMLを作成
     let quizCardsHtml = '';
     for (const quiz of allQuizData) {
-      // 💡 スプレッドシートのIDを取得（念のため空ならハイフンにする）
       const quizId = quiz.id || '-';
 
-      quizCardsHtml += `
-        <div class="quiz-card">
-          <div class="card-header-tags">
-            <span class="id-badge"># ${quizId}</span>
-            <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
-            <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
-          </div>
-          <h3>Q. ${quiz.question}</h3>
-          <p><strong>A.</strong> <span class="answer">${quiz.answer}</span></p>
-          ${quiz.explanation ? `<p class="explanation">💡 ${quiz.explanation}</p>` : ''}
-          ${quiz.image ? `<p class="has-image">🖼️ 画像: ${quiz.image}</p>` : ''}
-          
-          <div class="card-actions">
-            <form action="/delete-quiz" method="POST" onsubmit="return confirm('本当にこのクイズを削除してもよろしいですか？');" style="margin:0; width:100%;">
+      // 💡 もしこのカードが「編集対象」として選ばれていたら、カード自体を編集入力欄にする！
+      if (editId && quizId.toString() === editId.toString()) {
+        quizCardsHtml += `
+          <div class="quiz-card editing-card">
+            <span class="id-badge"># ${quizId} を編集欄</span>
+            <form action="/edit-quiz" method="POST" style="margin-top: 1rem;">
               <input type="hidden" name="id" value="${quizId}">
-              <button type="submit" class="delete-btn">🗑️ 削除する</button>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label>🏷️ ジャンル</label>
+                  <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required>
+                </div>
+                <div class="form-group">
+                  <label>⭐ 難易度</label>
+                  <input type="number" name="difficulty" class="form-control" min="1" max="5" value="${quiz.difficulty || 1}" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>❓ 問題文</label>
+                <textarea name="question" class="form-control" rows="3" required>${quiz.question || ''}</textarea>
+              </div>
+
+              <div class="form-group">
+                <label>✅ 正解</label>
+                <input type="text" name="answer" class="form-control" value="${quiz.answer || ''}" required>
+              </div>
+
+              <div class="form-group">
+                <label>💡 解説（任意）</label>
+                <textarea name="explanation" class="form-control" rows="2">${quiz.explanation || ''}</textarea>
+              </div>
+
+              <div class="form-group">
+                <label>🖼️ 画像名（任意）</label>
+                <input type="text" name="image" class="form-control" value="${quiz.image || ''}">
+              </div>
+
+              <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                <button type="submit" class="save-btn">💾 上書き保存</button>
+                <a href="/" class="cancel-btn">キャンセル</a>
+              </div>
             </form>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        // 通常時のカード表示（✏️編集ボタンを追加！）
+        quizCardsHtml += `
+          <div class="quiz-card">
+            <div class="card-header-tags">
+              <span class="id-badge"># ${quizId}</span>
+              <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
+              <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
+            </div>
+            <h3>Q. ${quiz.question}</h3>
+            <p><strong>A.</strong> <span class="answer">${quiz.answer}</span></p>
+            ${quiz.explanation ? `<p class="explanation">💡 ${quiz.explanation}</p>` : ''}
+            ${quiz.image ? `<p class="has-image">🖼️ 画像: ${quiz.image}</p>` : ''}
+            
+            <div class="card-actions">
+              <a href="/?edit_id=${quizId}" class="edit-link-btn">✏️ 編集する</a>
+              
+              <form action="/delete-quiz" method="POST" onsubmit="return confirm('本当にこのクイズを削除してもよろしいですか？');" style="margin:0;">
+                <input type="hidden" name="id" value="${quizId}">
+                <button type="submit" class="delete-btn">🗑️ 削除</button>
+              </form>
+            </div>
+          </div>
+        `;
+      }
     }
 
     // 画面全体のHTMLを送信
@@ -219,6 +277,11 @@ app.get('/', async (req, res) => {
             flex-direction: column;
             justify-content: space-between;
           }
+          /* 編集中のカードを目立たせる */
+          .editing-card {
+            border: 2px solid #eab308 !important;
+            background: rgba(234, 179, 8, 0.05) !important;
+          }
           .card-header-tags {
             margin-bottom: 1rem;
           }
@@ -276,28 +339,69 @@ app.get('/', async (req, res) => {
             margin-top: 0.5rem;
           }
           
-          /* 🗑️ 削除ボタン用の追加CSS */
+          /* ボタン操作エリア */
           .card-actions {
             margin-top: 1.5rem;
             padding-top: 1rem;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+          }
+          .edit-link-btn {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid #38bdf8;
+            color: #38bdf8;
+            padding: 0.4rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-align: center;
+            flex: 1;
+            transition: all 0.2s;
+          }
+          .edit-link-btn:hover {
+            background: #38bdf8;
+            color: #0f172a;
           }
           .delete-btn {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.1);
             border: 1px solid #ef4444;
             color: #fca5a5;
-            padding: 0.4rem 1rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            width: 100%;
+            font-size: 0.9rem;
             transition: all 0.2s;
           }
           .delete-btn:hover {
             background: #ef4444;
             color: white;
+          }
+
+          /* 編集保存・キャンセルボタン */
+          .save-btn {
+            background: #eab308;
+            color: #1e1b4b;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+          }
+          .cancel-btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
           }
         </style>
       </head>
@@ -363,9 +467,6 @@ app.post('/add-quiz', async (req, res) => {
     const { genre, difficulty, question, answer, explanation, image } = req.body;
     const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
-    console.log('📝 ダッシュボードから追加データを受信しました:', req.body);
-
-    // 💡 action: 'add' を明示的に指定して送るようにパワーアップ！
     await axios.get(GAS_WEB_APP_URL, {
       params: {
         action: 'add',
@@ -389,19 +490,53 @@ app.post('/add-quiz', async (req, res) => {
     `);
   } catch (error) {
     console.error('ダッシュボードからの追加エラー💦', error);
-    res.send('<h2 style="color:white; text-align:center;">登録中にエラーが発生しました。GASの設定を確認してください。</h2>');
+    res.send('<h2 style="color:white; text-align:center;">登録中にエラーが発生しました。</h2>');
   }
 });
 
-// 🚀 【新設】画面の削除ボタンからIDを受け取って、GASに「削除」命令を送る設定
+// 🚀 【新設】編集後のデータを受け取って、GASに「編集(edit)」命令を送る設定
+app.post('/edit-quiz', async (req, res) => {
+  try {
+    const { id, genre, difficulty, question, answer, explanation, image } = req.body;
+    const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
+
+    console.log(`✏️ ダッシュボードからID ${id} の修正データを受信しました`);
+
+    // 💡 action: 'edit' を指定し、書き換えるターゲットのIDとデータを一緒にGASへ転送！
+    await axios.get(GAS_WEB_APP_URL, {
+      params: {
+        action: 'edit',
+        id: id,
+        genre: genre,
+        difficulty: difficulty,
+        question: question,
+        answer: answer,
+        explanation: explanation,
+        image: image || ''
+      }
+    });
+
+    res.send(`
+      <div style="background:#0f172a; color:white; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+        <h1 style="color:#eab308;">💾 スプレッドシートの上書き保存が完了しました！</h1>
+        <p style="color:#94a3b8;">まもなくダッシュボードに戻ります...</p>
+        <script>
+          setTimeout(() => { window.location.href = '/'; }, 1500);
+        </script>
+      </div>
+    `);
+  } catch (error) {
+    console.error('ダッシュボードからの編集エラー💦', error);
+    res.send('<h2 style="color:white; text-align:center;">更新中にエラーが発生しました。</h2>');
+  }
+});
+
+// 🚀 画面の削除ボタンからIDを受け取って、GASに「削除」命令を送る設定
 app.post('/delete-quiz', async (req, res) => {
   try {
     const { id } = req.body;
     const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
-    console.log(`🗑️ ダッシュボードからID ${id} の削除要請を受信しました`);
-
-    // 💡 action: 'delete' と、消したい 'id' をGASに横流し！
     await axios.get(GAS_WEB_APP_URL, {
       params: {
         action: 'delete',
