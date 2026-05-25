@@ -55,3 +55,18 @@ for (const file of eventFiles) {
 // 🔑 あなたのBOT_TOKEN
 // index.js の一番最後の方
 client.login(process.env.DISCORD_TOKEN); // 👈 環境変数から読み込む
+
+// 🌐 Renderのポート開放＆生存確認用の即席Webサーバー
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Renderが「生きてる？」って確認しに来たときに「生きてるよ！」と返す
+app.get('/', (req, res) => {
+  res.send('Bot is running successfully!');
+});
+
+// 窓口（ポート）を開放して待ち受け開始！
+app.listen(PORT, () => {
+  console.log(`📱 サーバーがポート ${PORT} で起動しました！`);
+});
