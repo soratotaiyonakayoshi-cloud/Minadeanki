@@ -79,32 +79,28 @@ async function sendGameQuestion(thread, gameData) {
   let modeInfo = gameData.mode === 'survival' ? `❤️ あなたの残りライフに注意！` : `🏆 早押し高得点チャンス！`;
   
   let imageContent = '';
-  let quizAttachment = null; // 💡 ①画像を添付するための空箱を用意する！
+  let quizAttachment = null; 
 
-if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
     imageContent = `\n\n🖼️ **【画像問題】**`;
-    // 💡 古いコードは消して、直接URLを読み込ませるこの1行にする！
     quizAttachment = new AttachmentBuilder(currentQuiz.image);
   }
 
-  // 💡 ④送信するオプションの形を整える
   const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / 全 ${gameData.maxQuestions} 問**\n⏱️ 制限時間: **${gameData.timeLimit}秒** ➜ [${gameData.mode === 'survival' ? 'サバイバルモード' : '通常スコアモード'}]\n━━━━━━━━━━━━━━━━━━━━━━━━\n${modeInfo}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
   };
 
- // 💡 ⑤もし画像があれば、添付ファイルとして一緒に送信する！
   if (quizAttachment) {
     sendOptions.files = [quizAttachment];
   }
 
-  // 🛡️ ここからバリア！画像エラーで止まらないようにする
   try {
     const msg = await thread.send(sendOptions);
     gameData.currentMessage = msg;
   } catch (error) {
     console.error('画像送信エラー:', error);
-    delete sendOptions.files; // エラーの原因になる画像を外す
+    delete sendOptions.files;
     sendOptions.content += '\n\n⚠️ *(※画像のURLが読み込めなかったため、画像なしで出題しました)*';
     const fallbackMsg = await thread.send(sendOptions).catch(e => console.log(e));
     if (fallbackMsg) gameData.currentMessage = fallbackMsg;
@@ -113,7 +109,7 @@ if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
   gameData.timer = setTimeout(async () => { await endRound(thread, gameData); }, gameData.timeLimit * 1000);
 }
 
-// 🎲 ベッティングモード専用：お題のジャンル予告と賭け金受付
+// 🎲 ベッティングモード専用
 async function startBettingPhase(thread, gameData) {
   gameData.roundProcessing = false; 
   const currentQuiz = gameData.questions[gameData.currentRound];
@@ -172,26 +168,22 @@ async function exposeBettingQuestion(thread, gameData) {
   gameData.roundStartTime = Date.now();
 
   let imageContent = '';
-  let quizAttachment = null; // 💡 ベッティングモード用にも同じ空箱を用意する！
+  let quizAttachment = null; 
 
-if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
     imageContent = `\n\n🖼️ **【画像問題】**`;
-    // 💡 直接URLを読み込ませる形にします！
     quizAttachment = new AttachmentBuilder(currentQuiz.image);
   }
 
-  // 💡 送信する中身をオブジェクト化
   const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / クイズオープン！**\n⏱️ 制限時間: **${gameData.timeLimit}秒**\n━━━━━━━━━━━━━━━━━━━━━━━━\n${betStatusText}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
   };
 
-// 💡 画像があれば添付ファイルとしてドッキング
   if (quizAttachment) {
     sendOptions.files = [quizAttachment];
   }
 
-  // 🛡️ ここにもバリア！
   try {
     const msg = await thread.send(sendOptions);
     gameData.currentMessage = msg;
@@ -348,12 +340,10 @@ module.exports = {
       }
     }
 
-    // 🛠️ 【大改造箇所】3秒タイムアウトエラー (Unknown interaction) 対策
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('gameSetup_')) {
       const game = global.activeGames.get(interaction.channelId);
       if (!game) return interaction.reply({ content: 'ロビーの有効期限が切れています。もう一度 `/game` を実行してください。', flags: 64 });
 
-      // ① 速攻で「受け付けました信号」を返し、3秒の制限時間を引き延ばす
       await interaction.deferUpdate().catch(() => {});
 
       const value = interaction.values[0];
@@ -362,7 +352,6 @@ module.exports = {
       if (interaction.customId === 'gameSetup_rule') game.maxQuestions = parseInt(value, 10);
       if (interaction.customId === 'gameSetup_mode') game.mode = value; 
 
-      // ② 毎回スプレッドシートをDLするのをやめ、キャッシュ(保存データ)があればそれを使う
       if (!game.cachedGenres) {
         const allQuizData = await getQuizDataFromSheets();
         game.cachedGenres = [...new Set(allQuizData.map(q => q.genre))].slice(0, 24);
@@ -375,7 +364,7 @@ module.exports = {
         .addOptions([
           { label: '🏆 通常スコアモード（早押し高得点）', value: 'normal', default: game.mode === 'normal' },
           { label: '💀 サバイバルモード（ライフ制ノックアウト）', value: 'survival', default: game.mode === 'survival' },
-          { label: '🎲 ベッティングモード（賭け金倍増・5問完走型）', value: 'betting', default: game.mode === 'betting' }
+          { label: '🎲 ベッティングモード（賭け金倍増・完走型）', value: 'betting', default: game.mode === 'betting' }
         ]);
 
       const genreMenu = new StringSelectMenuBuilder()
@@ -386,23 +375,32 @@ module.exports = {
           ...genres.map(g => ({ label: g, value: g, default: game.genre === g }))
         ]);
 
+      // 💡 ダッシュボードのカスタム値をメニューに維持する機能
+      const timeOpts = [
+        { label: '瞬発力特化！ (5秒)', value: '5' },
+        { label: '標準モード (15秒)', value: '15' },
+        { label: 'じっくり思考 (30秒)', value: '30' }
+      ];
+      if (![5, 15, 30].includes(game.timeLimit)) timeOpts.push({ label: `⚙️ カスタム設定 (${game.timeLimit}秒)`, value: String(game.timeLimit) });
+      timeOpts.forEach(o => o.default = o.value === String(game.timeLimit));
+      
       const timeMenu = new StringSelectMenuBuilder()
         .setCustomId('gameSetup_time')
         .setPlaceholder('⏱️ 1問あたりの制限時間')
-        .addOptions([
-          { label: '瞬発力特化！ (5秒)', value: '5', default: game.timeLimit === 5 },
-          { label: '標準モード (15秒)', value: '15', default: game.timeLimit === 15 },
-          { label: 'じっくり思考 (30秒)', value: '30', default: game.timeLimit === 30 }
-        ]);
+        .addOptions(timeOpts);
+
+      const ruleOpts = [
+        { label: 'サクッと3問勝負', value: '3' },
+        { label: 'たっぷり5問耐久レース', value: '5' },
+        { label: 'ガチ勉強会（10問）', value: '10' }
+      ];
+      if (![3, 5, 10].includes(game.maxQuestions)) ruleOpts.push({ label: `⚙️ カスタム設定 (${game.maxQuestions}問)`, value: String(game.maxQuestions) });
+      ruleOpts.forEach(o => o.default = o.value === String(game.maxQuestions));
 
       const ruleMenu = new StringSelectMenuBuilder()
         .setCustomId('gameSetup_rule')
         .setPlaceholder('🏆 勝利条件・問題数')
-        .addOptions([
-          { label: 'サクッと3問勝負', value: '3', default: game.maxQuestions === 3 },
-          { label: 'たっぷり5問耐久レース', value: '5', default: game.maxQuestions === 5 },
-          { label: 'ガチ勉強会（10問）', value: '10', default: game.maxQuestions === 10 }
-        ]);
+        .addOptions(ruleOpts);
 
       const startButton = new ButtonBuilder()
         .setCustomId('gameSetup_start')
@@ -419,11 +417,10 @@ module.exports = {
       if (game.mode === 'survival') modeLabel = '💀 サバイバル（ライフ3）';
       if (game.mode === 'betting') modeLabel = '🎲 ベッティング（50点開始・問題数完走）';
 
-      // ③ interaction.update から interaction.editReply に変更（★flags: 64 を追加して非公開を維持！）
       await interaction.editReply({
         content: `⚙️ **【クイズゲームカスタムロビー】**\nお好みのルールにカスタマイズして「スタート」を押してください！\n\n🔹 **現在の設定：**\n・モード: \`${modeLabel}\`\n・ジャンル: \`${game.genre === 'all' ? '全範囲' : game.genre}\`\n・制限時間: \`${game.timeLimit}秒\`\n・勝利条件: \`${game.maxQuestions}問終了時に最高得点\``,
         components: [row0, row1, row2, row3, row4],
-        flags: 64 // 💡 ここに「自分にしか見せない」設定を復活させました！
+        flags: 64 
       }).catch(() => {});
     }
 
@@ -438,14 +435,12 @@ module.exports = {
       let filteredQuiz = allQuizData;
       if (game.genre !== 'all') filteredQuiz = allQuizData.filter(q => q.genre === game.genre);
       
-      // 💡 変更点：設定した問題数（game.maxQuestions）より少なかったら、警告して止めるストッパー！
       if (filteredQuiz.length < game.maxQuestions) {
         return interaction.editReply({ 
           content: `❌ 指定されたジャンルには問題が **${filteredQuiz.length}問** しかありません！\nルールの「勝利条件・問題数」を減らすか、ジャンルを変更してください！` 
         });
       }
 
-      // 🛡️ 重複を解消！1回だけ正しく宣言するように綺麗に整えました
       const selectedQuizzes = filteredQuiz.sort(() => 0.5 - Math.random()).slice(0, game.maxQuestions);
       game.questions = [];
       for (const quiz of selectedQuizzes) {
