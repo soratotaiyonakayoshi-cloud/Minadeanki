@@ -222,16 +222,15 @@ app.get('/', async (req, res) => {
         </style>
   </head>
       <body>
-        <div class="header">
+       <div class="header">
           <h1>🎓 みんなで暗記！</h1>
           <p>クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
           
           <div class="mt-3">
-            <a href="<?= ScriptApp.getService().getUrl() ?>?page=howto" class="btn btn-info text-white fw-bold shadow-sm" target="_top">
+            <button onclick="google.script.run.withSuccessHandler(function(url){ window.open(url + '?page=howto', '_top'); }).getScriptUrl();" class="btn btn-info text-white fw-bold shadow-sm">
               <i class="bi bi-book me-1"></i> 📖 使い方ガイドを開く
-            </a>
+            </button>
           </div>
-        </div>
           
         </div>
 
