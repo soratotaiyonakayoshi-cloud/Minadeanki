@@ -78,23 +78,31 @@ async function sendGameQuestion(thread, gameData) {
 
   let modeInfo = gameData.mode === 'survival' ? `❤️ あなたの残りライフに注意！` : `🏆 早押し高得点チャンス！`;
   
-let imageContent = '';
+  let imageContent = '';
+  let quizAttachment = null; // 💡 ①画像を添付するための空箱を用意する！
 
-if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-  // 1. 画像のURLを安全に暗号化（エンコード）する
-  const encodedUrl = encodeURIComponent(currentQuiz.image);
-  
-  // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
-  const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-  
-  // 3. 変換した安全なURLをメッセージに載せる！
-  imageContent = `\n\n🖼️ **【画像問題】**\n${proxyImageUrl}`;
-} // 👈 この最後の閉じカッコが漏れていました！
+  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+    const encodedUrl = encodeURIComponent(currentQuiz.image);
+    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+    
+    // 💡 ②テキストにURLを載せるのをやめて、文字だけにします！
+    imageContent = `\n\n🖼️ **【画像問題】**`;
+    // 💡 ③AttachmentBuilderを使って画像ファイル化して箱に詰める！
+    quizAttachment = new AttachmentBuilder(proxyImageUrl);
+  }
 
-  const msg = await thread.send({
+  // 💡 ④送信するオプションの形を整える
+  const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / 全 ${gameData.maxQuestions} 問**\n⏱️ 制限時間: **${gameData.timeLimit}秒** ➜ [${gameData.mode === 'survival' ? 'サバイバルモード' : '通常スコアモード'}]\n━━━━━━━━━━━━━━━━━━━━━━━━\n${modeInfo}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
-  });
+  };
+
+  // 💡 ⑤もし画像があれば、添付ファイルとして一緒に送信する！
+  if (quizAttachment) {
+    sendOptions.files = [quizAttachment];
+  }
+
+  const msg = await thread.send(sendOptions);
 
   gameData.currentMessage = msg;
   gameData.timer = setTimeout(async () => { await endRound(thread, gameData); }, gameData.timeLimit * 1000);
@@ -158,23 +166,29 @@ async function exposeBettingQuestion(thread, gameData) {
   const row = new ActionRowBuilder().addComponents(buttons);
   gameData.roundStartTime = Date.now();
 
-let imageContent = '';
+  let imageContent = '';
+  let quizAttachment = null; // 💡 ベッティングモード用にも同じ空箱を用意する！
 
-if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-  // 1. 画像のURLを安全に暗号化（エンコード）する
-  const encodedUrl = encodeURIComponent(currentQuiz.image);
-  
-  // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
-  const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-  
-  // 3. 変換した安全なURLをメッセージに載せる！
-  imageContent = `\n\n🖼️ **【画像問題】**\n${proxyImageUrl}`;
-} // 👈 この最後の閉じカッコが漏れていました！
+  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+    const encodedUrl = encodeURIComponent(currentQuiz.image);
+    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+    
+    imageContent = `\n\n🖼️ **【画像問題】**`;
+    quizAttachment = new AttachmentBuilder(proxyImageUrl);
+  }
 
-  const msg = await thread.send({
+  // 💡 送信する中身をオブジェクト化
+  const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / クイズオープン！**\n⏱️ 制限時間: **${gameData.timeLimit}秒**\n━━━━━━━━━━━━━━━━━━━━━━━━\n${betStatusText}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
-  });
+  };
+
+  // 💡 画像があれば添付ファイルとしてドッキング
+  if (quizAttachment) {
+    sendOptions.files = [quizAttachment];
+  }
+
+  const msg = await thread.send(sendOptions);
 
   gameData.currentMessage = msg;
   gameData.timer = setTimeout(async () => { await endRound(thread, gameData); }, gameData.timeLimit * 1000);
