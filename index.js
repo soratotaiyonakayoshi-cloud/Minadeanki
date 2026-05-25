@@ -71,11 +71,18 @@ const upload = multer({ storage: storage });
 app.get('/', async (req, res) => {
   try {
     const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
-    const response = await axios.get(SPREADSHEET_CSV_URL, {
-      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' }
-    });
-    const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
+    const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
+
+    // 💡 1. クイズデータと「設定データ」を両方並行して取得する
+    const [csvResponse, settingsResponse] = await Promise.all([
+      axios.get(SPREADSHEET_CSV_URL, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } }),
+      axios.get(`${GAS_WEB_APP_URL}?action=getSettings`)
+    ]);
+
+    const allQuizData = parse(csvResponse.data, { columns: true, skip_empty_lines: true });
+    const currentSettings = settingsResponse.data || { playTime: 20, questionCount: 5 };
     
+    // ジャンルの自動抽出
     const uniqueGenres = Array.from(new Set(allQuizData.map(q => q.genre || '未分類')));
     let tabsHtml = `<button class="tab-btn active" onclick="filterCards('すべて', this)">すべて</button>`;
     for (const genre of uniqueGenres) {
@@ -147,21 +154,26 @@ app.get('/', async (req, res) => {
         <title>みんなで暗記！ ダッシュボード</title>
         <style>
           body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; color: #333333; margin: 0; padding: 2rem; }
-          .header { text-align: center; margin-bottom: 3rem; }
+          .header { text-align: center; margin-bottom: 2rem; }
           h1 { font-size: 2.8rem; background: linear-gradient(to right, #175697, #349E5A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; letter-spacing: 2px; }
           .header p { color: #555555; font-size: 1.1rem; font-weight: bold; }
           
-          /* 一括操作バーのデザイン */
-          .bulk-action-bar {
-            max-width: 1200px; margin: 0 auto 1.5rem auto; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;
-            background: #ffffff; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+          /* ⚙️ 開閉式設定セクションのスタイル */
+          .settings-accordion {
+            max-width: 600px; margin: 0 auto 1.5rem auto; background: #ffffff; border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #175697; overflow: hidden;
           }
-          .bulk-delete-btn {
-            background: #e11d48; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: bold;
-            cursor: pointer; display: none; transition: opacity 0.2s;
+          .accordion-toggle {
+            padding: 1rem 1.5rem; background: #ffffff; font-weight: bold; color: #175697;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;
           }
-          .bulk-delete-btn:hover { opacity: 0.9; }
-
+          .accordion-toggle::after { content: '▼'; font-size: 0.8rem; transition: transform 0.2s; }
+          .settings-accordion.open .accordion-toggle::after { transform: rotate(180deg); }
+          .accordion-content {
+            padding: 0 1.5rem 1.5rem 1.5rem; display: none; border-top: 1px solid #f1f5f9;
+          }
+          .settings-accordion.open .accordion-content { display: block; }
+          
           .form-container { background: #ffffff; border-top: 6px solid #349E5A; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 3rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
           .form-container h2 { margin-top: 0; font-size: 1.4rem; color: #175697; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.8rem; margin-bottom: 1.5rem; }
           .form-group { margin-bottom: 1.2rem; }
@@ -173,6 +185,12 @@ app.get('/', async (req, res) => {
           
           .submit-btn { width: 100%; padding: 1rem; background: #349E5A; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1rem; box-shadow: 0 4px 6px rgba(52, 158, 90, 0.3); }
           .submit-btn:hover { background: #2c864c; }
+          .settings-save-btn { width: 100%; padding: 0.8rem; background: #175697; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+          .settings-save-btn:hover { background: #113f70; }
+
+          .bulk-action-bar { max-width: 1200px; margin: 0 auto 1.5rem auto; display: flex; justify-content: flex-end; align-items: center; gap: 1rem; background: #ffffff; padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+          .bulk-delete-btn { background: #e11d48; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; transition: opacity 0.2s; }
+          .bulk-delete-btn:hover { opacity: 0.9; }
 
           .tabs-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; justify-content: center; }
           .tab-btn { background: #ffffff; border: 2px solid #e2e8f0; color: #475569; padding: 0.5rem 1.5rem; border-radius: 9999px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
@@ -182,11 +200,7 @@ app.get('/', async (req, res) => {
           .quiz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; max-width: 1200px; margin: 0 auto; }
           .quiz-card { background: #ffffff; border-top: 5px solid #175697; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s; position: relative; }
           .quiz-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1); }
-          
-          /* チェックボックスのスタイル調整 */
-          .quiz-select-checkbox {
-            transform: scale(1.4); margin-right: 0.8rem; cursor: pointer; accent-color: #e11d48;
-          }
+          .quiz-select-checkbox { transform: scale(1.4); margin-right: 0.8rem; cursor: pointer; accent-color: #e11d48; }
 
           .editing-card { border: 2px solid #349E5A !important; border-top: 6px solid #349E5A !important; background: #f0fdf4 !important; }
           .card-header-tags { display: flex; align-items: center; margin-bottom: 1rem; }
@@ -213,11 +227,30 @@ app.get('/', async (req, res) => {
           <p>クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
         </div>
 
+        <div class="settings-accordion" id="settingsAccordion">
+          <div class="accordion-toggle" onclick="toggleAccordion()">🛠️ Discordゲーム設定を編集する</div>
+          <div class="accordion-content">
+            <form action="/save-settings" method="POST" style="margin-top:1rem;">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="playTime">⏱️ 1問の制限時間 (秒)</label>
+                  <input type="number" id="playTime" name="playTime" class="form-control" value="${currentSettings.playTime}" min="5" max="120" required>
+                </div>
+                <div class="form-group">
+                  <label for="questionCount">📝 1ゲームの問題数 (問)</label>
+                  <input type="number" id="questionCount" name="questionCount" class="form-control" value="${currentSettings.questionCount}" min="1" max="50" required>
+                </div>
+              </div>
+              <button type="submit" class="settings-save-btn">⚙️ 設定をスプレッドシートに保存</button>
+            </form>
+          </div>
+        </div>
+
         <div class="form-container">
           <h2>➕ 新しいクイズを追加する</h2>
           <form action="/add-quiz" method="POST" enctype="multipart/form-data">
             <div class="form-row">
-              <div class="form-group"> <label for="genre">🏷️ ジャンル</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 農学, 工学" required> </div>
+              <div class="form-group"> <label for="genre">🏷️ ジャンル</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
               <div class="form-group"> <label for="difficulty">⭐ 難易度 (1〜5)</label> <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required> </div>
             </div>
             <div class="form-group"> <label for="question">❓ 問題文</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
@@ -245,6 +278,12 @@ app.get('/', async (req, res) => {
         </div>
 
         <script>
+          // アコーディオンの開閉制御
+          function toggleAccordion() {
+            const accordion = document.getElementById('settingsAccordion');
+            accordion.classList.toggle('open');
+          }
+
           function filterCards(genre, btnElement) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
@@ -253,7 +292,6 @@ app.get('/', async (req, res) => {
             });
           }
 
-          // 💡 【新設】チェックボックスの状態を見て、一括削除ボタンを制御するJavaScript
           function updateBulkDeleteButton() {
             const checkboxes = document.querySelectorAll('.quiz-select-checkbox:checked');
             const btn = document.getElementById('bulk-delete-btn');
@@ -261,10 +299,8 @@ app.get('/', async (req, res) => {
             const hiddenInput = document.getElementById('bulk-delete-ids');
             
             if (checkboxes.length > 0) {
-              // 選択されているIDを「2,5,9」のようなカンマ区切りの文字にする
               const ids = Array.from(checkboxes).map(cb => cb.value);
               hiddenInput.value = ids.join(',');
-              
               text.textContent = ids.length + ' 件のクイズを選択中';
               btn.style.display = 'inline-block';
             } else {
@@ -281,6 +317,17 @@ app.get('/', async (req, res) => {
     console.error('ダッシュボードでのクイズ読み込みエラー:', error);
     res.send('<h2 style="color:#e11d48; text-align:center;">エラーが発生しました。</h2>');
   }
+});
+
+// 💡 【新設】送られてきた基本設定をGASに転送するルート
+app.post('/save-settings', async (req, res) => {
+  try {
+    const { playTime, questionCount } = req.body;
+    await axios.get(process.env.GAS_WEB_APP_URL, {
+      params: { action: 'updateSettings', playTime, questionCount }
+    });
+    res.send(`<div style="background:#f4f7f6; color:#333; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1 style="color:#175697;">⚙️ 設定を保存しました！</h1><p>画面を戻しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
+  } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
 app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
@@ -303,7 +350,6 @@ app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
 
 app.post('/delete-quiz', async (req, res) => {
   try {
-    // 💡 1つのIDの時も、複数ID("2,5,7")の時も、そのままGASにぶん投げる！
     await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'delete', id: req.body.id } });
     res.send(`<div style="background:#f4f7f6; color:#333; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1 style="color:#e11d48;">🗑️ 削除しました</h1><p>画面を更新しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1000);</script></div>`);
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
