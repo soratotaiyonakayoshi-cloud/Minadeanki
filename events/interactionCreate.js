@@ -82,14 +82,10 @@ async function sendGameQuestion(thread, gameData) {
   let quizAttachment = null; // 💡 ①画像を添付するための空箱を用意する！
 
   if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-    const encodedUrl = encodeURIComponent(currentQuiz.image);
-    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-    
-    // 💡 ②テキストにURLを載せるのをやめて、文字だけにします！
-    imageContent = `\n\n🖼️ **【画像問題】**`;
-    // 💡 ③AttachmentBuilderを使って画像ファイル化して箱に詰める！
-    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'image.png' });
-  }
+  imageContent = `\n\n🖼️ **【画像問題】**`;
+  // GASを通さず、直接URLをそのまま読み込ませる！
+  quizAttachment = new AttachmentBuilder(currentQuiz.image);
+}
 
   // 💡 ④送信するオプションの形を整える
   const sendOptions = {
@@ -170,12 +166,10 @@ async function exposeBettingQuestion(thread, gameData) {
   let quizAttachment = null; // 💡 ベッティングモード用にも同じ空箱を用意する！
 
   if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-    const encodedUrl = encodeURIComponent(currentQuiz.image);
-    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-    
-    imageContent = `\n\n🖼️ **【画像問題】**`;
-    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'image.png' });
-  }
+  imageContent = `\n\n🖼️ **【画像問題】**`;
+  // GASを通さず、直接URLをそのまま読み込ませる！
+  quizAttachment = new AttachmentBuilder(currentQuiz.image);
+}
 
   // 💡 送信する中身をオブジェクト化
   const sendOptions = {
