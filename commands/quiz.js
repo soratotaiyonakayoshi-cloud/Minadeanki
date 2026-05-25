@@ -121,7 +121,7 @@ module.exports = {
     const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
     
     // 3. 変換したURLを使って、メッセージに添付する
-    messageOptions.files = [new AttachmentBuilder(proxyImageUrl)];
+    messageOptions.files = [new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' })];
 }
     
     const isThread = interaction.channel.isThread();
