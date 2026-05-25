@@ -47,7 +47,15 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(button);
     const messageOptions = { content: `🎯 **${interaction.user} さんの早押しクイズが始まりました！**\n\n📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}`, components: [row], files: [] };
-    if (quiz.image) messageOptions.files = [new AttachmentBuilder(quiz.image)];
+    if (quiz.image) {
+    // 1. 画像のURLを安全に暗号化（エンコード）する
+    const encodedUrl = encodeURIComponent(quiz.image);
+    // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
+    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+    
+    // 3. 変換したURLを使って、メッセージに添付する
+    messageOptions.files = [new AttachmentBuilder(proxyImageUrl)];
+}
     
     await thread.send(messageOptions);
     await interaction.editReply({ content: `✅ 専用部屋を作成しました！こちらから参加してください ➜ ${thread}` });
