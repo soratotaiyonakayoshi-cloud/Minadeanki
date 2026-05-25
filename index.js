@@ -57,7 +57,7 @@ for (const file of eventFiles) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 💡 【重要】Web画面のフォームから送られてきた文字（データ）を解析できるようにする設定
+// 💡 Web画面のフォームから送られてきた文字データを解析できるようにする設定
 app.use(express.urlencoded({ extended: true }));
 
 // 🖼️ 画像フォルダの公開
@@ -287,4 +287,62 @@ app.get('/', async (req, res) => {
 
             <div class="form-group">
               <label for="image">🖼️ 画像ファイル名（任意）</label>
-              <input type="text" id="image" name="image" class="form-control" placeholder="例
+              <input type="text" id="image" name="image" class="form-control" placeholder="例: quiz1.png (※imagesフォルダ内の名前)">
+            </div>
+
+            <button type="submit" class="submit-btn">🚀 スプレッドシートに登録する</button>
+          </form>
+        </div>
+
+        <div class="quiz-grid">
+          ${quizCardsHtml}
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('ダッシュボードでのクイズ読み込みエラー:', error);
+    res.send('<h2 style="color:white; text-align:center;">エラーが発生しました。</h2>');
+  }
+});
+
+// 🚀 フォームからデータを受け取ってGASに送る設定
+app.post('/add-quiz', async (req, res) => {
+  try {
+    const { genre, difficulty, question, answer, explanation, image } = req.body;
+    const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
+
+    console.log('📝 ダッシュボードからデータを受信しました:', req.body);
+
+    await axios.get(GAS_WEB_APP_URL, {
+      params: {
+        genre: genre,
+        difficulty: difficulty,
+        question: question,
+        answer: answer,
+        explanation: explanation,
+        image: image || '' 
+      }
+    });
+
+    res.send(`
+      <div style="background:#0f172a; color:white; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+        <h1 style="color:#4ade80;">🎉 スプレッドシートに登録が完了しました！</h1>
+        <p style="color:#94a3b8;">まもなくダッシュボードに戻ります...</p>
+        <script>
+          setTimeout(() => { window.location.href = '/'; }, 2000);
+        </script>
+      </div>
+    `);
+  } catch (error) {
+    console.error('ダッシュボードからの追加エラー💦', error);
+    res.send('<h2 style="color:white; text-align:center;">登録中にエラーが発生しました。GASの設定を確認してください。</h2>');
+  }
+});
+
+// ⚡ サーバーの起動
+app.listen(PORT, () => {
+  console.log(`🌐 Webサーバーがポート ${PORT} で起動しました！`);
+});
+
+client.login(process.env.BOT_TOKEN);
