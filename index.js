@@ -5,6 +5,8 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const express = require('express');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
+// ⚙️ 【新設】画像アップロード用の部品を読み込む
+const multer = require('multer');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -57,11 +59,26 @@ for (const file of eventFiles) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Web画面のフォームから送られてきた文字データを解析できるようにする設定
+// URLエンコードデータの解析設定
 app.use(express.urlencoded({ extended: true }));
 
 // 🖼️ 画像フォルダの公開
 app.use('/images', express.static(path.join(__dirname, 'images')));
+
+// ⚙️ 【新設】Multerの設定（アップロードされた画像を images フォルダに元の名前で保存する）
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'images/'); // 保存先フォルダ
+  },
+  filename: function (req, file, cb) {
+    // 日本語ファイル名によるバグを防ぐため、現在の時間（数字）＋元の拡張子 でファイル名を固定する
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'quiz-' + uniqueSuffix + ext); 
+  }
+});
+const upload = multer({ storage: storage });
+
 
 // 🏠 ダッシュボードのトップページ（クイズ一覧 ＆ 新規追加 ＆ 編集切替）
 app.get('/', async (req, res) => {
@@ -72,26 +89,21 @@ app.get('/', async (req, res) => {
     });
     const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
 
-    // 💡 現在どのIDを編集しようとしているか（?edit_id=XX から取得。なければnull）
     const editId = req.query.edit_id || null;
-    let targetQuiz = null;
-
-    if (editId) {
-      targetQuiz = allQuizData.find(q => q.id.toString() === editId.toString());
-    }
 
     // クイズ一覧のカードHTMLを作成
     let quizCardsHtml = '';
     for (const quiz of allQuizData) {
       const quizId = quiz.id || '-';
 
-      // 💡 もしこのカードが「編集対象」として選ばれていたら、カード自体を編集入力欄にする！
+      // 💡 もしこのカードが「編集対象」なら、編集フォームに変身！
       if (editId && quizId.toString() === editId.toString()) {
         quizCardsHtml += `
           <div class="quiz-card editing-card">
             <span class="id-badge"># ${quizId} を編集欄</span>
-            <form action="/edit-quiz" method="POST" style="margin-top: 1rem;">
+            <form action="/edit-quiz" method="POST" enctype="multipart/form-data" style="margin-top: 1rem;">
               <input type="hidden" name="id" value="${quizId}">
+              <input type="hidden" name="old_image" value="${quiz.image || ''}">
               
               <div class="form-row">
                 <div class="form-group">
@@ -120,8 +132,8 @@ app.get('/', async (req, res) => {
               </div>
 
               <div class="form-group">
-                <label>🖼️ 画像名（任意）</label>
-                <input type="text" name="image" class="form-control" value="${quiz.image || ''}">
+                <label>🖼️ 画像の変更（現在の画像: ${quiz.image || 'なし'}）</label>
+                <input type="file" name="image_file" class="form-control" accept="image/*">
               </div>
 
               <div style="display:flex; gap:0.5rem; margin-top:1rem;">
@@ -132,7 +144,7 @@ app.get('/', async (req, res) => {
           </div>
         `;
       } else {
-        // 通常時のカード表示（✏️編集ボタンを追加！）
+        // 通常時のカード表示
         quizCardsHtml += `
           <div class="quiz-card">
             <div class="card-header-tags">
@@ -277,7 +289,6 @@ app.get('/', async (req, res) => {
             flex-direction: column;
             justify-content: space-between;
           }
-          /* 編集中のカードを目立たせる */
           .editing-card {
             border: 2px solid #eab308 !important;
             background: rgba(234, 179, 8, 0.05) !important;
@@ -382,7 +393,6 @@ app.get('/', async (req, res) => {
             color: white;
           }
 
-          /* 編集保存・キャンセルボタン */
           .save-btn {
             background: #eab308;
             color: #1e1b4b;
@@ -413,7 +423,7 @@ app.get('/', async (req, res) => {
 
         <div class="form-container">
           <h2>➕ 新しいクイズを追加する</h2>
-          <form action="/add-quiz" method="POST">
+          <form action="/add-quiz" method="POST" enctype="multipart/form-data">
             <div class="form-row">
               <div class="form-group">
                 <label for="genre">🏷️ ジャンル</label>
@@ -441,8 +451,8 @@ app.get('/', async (req, res) => {
             </div>
 
             <div class="form-group">
-              <label for="image">🖼️ 画像ファイル名（任意）</label>
-              <input type="text" id="image" name="image" class="form-control" placeholder="例: quiz1.png (※imagesフォルダ内の名前)">
+              <label for="image_file">🖼️ クイズ用の画像（任意）</label>
+              <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*">
             </div>
 
             <button type="submit" class="submit-btn">🚀 スプレッドシートに登録する</button>
@@ -461,11 +471,16 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 🚀 フォームからデータを受け取ってGASに「追加」命令を送る設定
-app.post('/add-quiz', async (req, res) => {
+// 🚀 【改造】画像アップロードに対応した新規追加処理
+app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   try {
-    const { genre, difficulty, question, answer, explanation, image } = req.body;
+    const { genre, difficulty, question, answer, explanation } = req.body;
     const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
+
+    // 💡 もしファイルがアップロードされていたら、新しく生成されたファイル名を使う
+    const imageName = req.file ? req.file.filename : '';
+
+    console.log('📝 新規クイズを受け取りました。画像名:', imageName);
 
     await axios.get(GAS_WEB_APP_URL, {
       params: {
@@ -475,7 +490,7 @@ app.post('/add-quiz', async (req, res) => {
         question: question,
         answer: answer,
         explanation: explanation,
-        image: image || '' 
+        image: imageName // 生成された画像名をGAS経由でスプレッドシートに保存
       }
     });
 
@@ -494,15 +509,17 @@ app.post('/add-quiz', async (req, res) => {
   }
 });
 
-// 🚀 【新設】編集後のデータを受け取って、GASに「編集(edit)」命令を送る設定
-app.post('/edit-quiz', async (req, res) => {
+// 🚀 【改造】画像アップロードに対応した編集処理
+app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
   try {
-    const { id, genre, difficulty, question, answer, explanation, image } = req.body;
+    const { id, genre, difficulty, question, answer, explanation, old_image } = req.body;
     const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
-    console.log(`✏️ ダッシュボードからID ${id} の修正データを受信しました`);
+    // 💡 新しい画像が選ばれていればそれを使い、選ばれていなければ前の画像をそのままキープする
+    const imageName = req.file ? req.file.filename : old_image;
 
-    // 💡 action: 'edit' を指定し、書き換えるターゲットのIDとデータを一緒にGASへ転送！
+    console.log(`✏️ ID ${id} の修正。確定画像名:`, imageName);
+
     await axios.get(GAS_WEB_APP_URL, {
       params: {
         action: 'edit',
@@ -512,7 +529,7 @@ app.post('/edit-quiz', async (req, res) => {
         question: question,
         answer: answer,
         explanation: explanation,
-        image: image || ''
+        image: imageName
       }
     });
 
@@ -531,7 +548,7 @@ app.post('/edit-quiz', async (req, res) => {
   }
 });
 
-// 🚀 画面の削除ボタンからIDを受け取って、GASに「削除」命令を送る設定
+// 🚀 削除処理
 app.post('/delete-quiz', async (req, res) => {
   try {
     const { id } = req.body;
