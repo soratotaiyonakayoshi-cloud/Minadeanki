@@ -88,7 +88,7 @@ async function sendGameQuestion(thread, gameData) {
     // 💡 ②テキストにURLを載せるのをやめて、文字だけにします！
     imageContent = `\n\n🖼️ **【画像問題】**`;
     // 💡 ③AttachmentBuilderを使って画像ファイル化して箱に詰める！
-    quizAttachment = new AttachmentBuilder(proxyImageUrl);
+    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'image.png' });
   }
 
   // 💡 ④送信するオプションの形を整える
@@ -174,7 +174,7 @@ async function exposeBettingQuestion(thread, gameData) {
     const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
     
     imageContent = `\n\n🖼️ **【画像問題】**`;
-    quizAttachment = new AttachmentBuilder(proxyImageUrl);
+    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'image.png' });
   }
 
   // 💡 送信する中身をオブジェクト化
