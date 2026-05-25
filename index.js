@@ -264,7 +264,7 @@ app.get('/', async (req, res) => {
             <div class="form-group"> <label for="answer">✅ 正解の答え</label> <input type="text" id="answer" name="answer" class="form-control" placeholder="正解となる単語" required> </div>
             <div class="form-group"> <label for="explanation">💡 解説（任意）</label> <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
             <div class="form-group"> <label for="image_file">🖼️ クイズ用の画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> </div>
-            <button type="submit" class="submit-btn">✨ スプレッドシートに登録する</button>
+            <button type="submit" class="submit-btn">✨ 登録する</button>
           </form>
         </div>
 
