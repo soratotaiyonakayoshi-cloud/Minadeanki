@@ -226,10 +226,10 @@ app.get('/', async (req, res) => {
           <h1>🎓 みんなで暗記！</h1>
           <p>クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
           
-          <div class="mt-3">
-            <button onclick="google.script.run.withSuccessHandler(function(url){ window.open(url + '?page=howto', '_top'); }).getScriptUrl();" class="btn btn-info text-white fw-bold shadow-sm">
-              <i class="bi bi-book me-1"></i> 📖 使い方ガイドを開く
-            </button>
+          <div style="margin-top: 1rem;">
+            <a href="/how-to-use" style="display: inline-block; background: #175697; color: white; text-decoration: none; padding: 0.6rem 1.5rem; border-radius: 9999px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              📖 使い方ガイドを開く
+            </a>
           </div>
           
         </div>
@@ -326,6 +326,59 @@ app.get('/', async (req, res) => {
   }
 });
 
+// 💡 【新設】使い方ガイド専用のページ
+app.get('/how-to-use', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="ja">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>使い方ガイド - みんなで暗記！</title>
+      <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; color: #333333; margin: 0; padding: 2rem; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 6px solid #175697; }
+        h1 { color: #175697; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-top: 0; }
+        h2 { color: #349E5A; margin-top: 2rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.5rem; }
+        .back-btn { display: inline-block; margin-bottom: 1.5rem; color: #475569; text-decoration: none; font-weight: bold; background: #e2e8f0; padding: 0.5rem 1rem; border-radius: 6px; }
+        .back-btn:hover { background: #cbd5e1; }
+        .cmd { display: inline-block; background: #ffe4e6; color: #e11d48; padding: 0.2rem 0.6rem; border-radius: 4px; font-family: monospace; font-weight: bold; margin-right: 0.5rem; }
+        .card { background: #f8fafc; border-left: 4px solid #175697; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <a href="/" class="back-btn">← ダッシュボードに戻る</a>
+        <h1>📖 クイズBot 使い方ガイド</h1>
+        
+        <h2>1. Discordでの遊び方（コマンド一覧）</h2>
+        <div class="card">
+          <p><span class="cmd">/game</span> <strong>カスタムゲームロビーを開く（おすすめ！）</strong><br>
+          みんなで遊ぶメイン機能です。モード、ジャンル、制限時間、問題数を自由に設定して対戦できます。</p>
+        </div>
+        <div class="card" style="border-left-color: #349E5A;">
+          <p><span class="cmd">/quiz</span> <strong>単発AI4択クイズ</strong><br>
+          ランダムに1問出題されます。ダミーの選択肢はAIがその場で自動生成します。</p>
+        </div>
+        <div class="card" style="border-left-color: #f59e0b;">
+          <p><span class="cmd">/quick-quiz</span> <strong>本格ガチ早押しクイズ</strong><br>
+          ボタンを押して解答権を獲得し、文字を入力して答えるテレビ番組のようなモードです。</p>
+        </div>
+
+        <h2>2. 3つのゲームモード（/game専用）</h2>
+        <ul>
+          <li><strong>🏆 通常スコア:</strong> 早押しで高得点。全問終了時に最高得点の人が勝ち！</li>
+          <li><strong>💀 サバイバル:</strong> ライフ3でスタート。時間切れや不正解でライフが減り、0で脱落。</li>
+          <li><strong>🎲 ベッティング:</strong> 所持ポイントを賭ける変則ルール。自信のある問題で一発逆転！</li>
+        </ul>
+
+        <h2>3. 神機能：出題ジャンルの増やし方</h2>
+        <p>管理画面の「➕ 新しいクイズを追加する」から、ジャンルの入力欄に<strong>「新しいジャンル名（アニメ、世界史など）」を直接手入力して登録するだけ</strong>で、自動的にDiscordのメニューにも追加されます！事前の設定は一切不要です。</p>
+      </div>
+    </body>
+    </html>
+  `);
+});
 // 💡 【新設】送られてきた基本設定をGASに転送するルート
 app.post('/save-settings', async (req, res) => {
   try {
