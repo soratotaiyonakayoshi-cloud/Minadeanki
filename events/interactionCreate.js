@@ -429,7 +429,7 @@ module.exports = {
 
     if (interaction.isButton() && interaction.customId === 'gameSetup_start') {
       const game = global.activeGames.get(interaction.channelId);
-      if (!game) return interaction.reply({ content: 'エラーが発生しました。もう一度 `/game` を開き直してください。', flags: 64 });
+      if (!game) return interaction.reply({ content: 'ロビーの有効期限が切れています。もう一度 `/game` を実行してください。', flags: 64 });
       if (interaction.user.id !== game.hostId) return interaction.reply({ content: `❌ このゲームを開始できるのはホストだけです！`, flags: 64 });
 
       await interaction.update({ content: `⏳ システム発動中：AIが全 ${game.maxQuestions} 問の4択選択肢をまとめて事前生成しています…（約5〜10秒）`, components: [] });
@@ -438,15 +438,14 @@ module.exports = {
       let filteredQuiz = allQuizData;
       if (game.genre !== 'all') filteredQuiz = allQuizData.filter(q => q.genre === game.genre);
       
-      // 💡 設定した問題数（game.maxQuestions）より少なかったら、警告して止めるように変更！
+      // 💡 変更点：設定した問題数（game.maxQuestions）より少なかったら、警告して止めるストッパー！
       if (filteredQuiz.length < game.maxQuestions) {
         return interaction.editReply({ 
           content: `❌ 指定されたジャンルには問題が **${filteredQuiz.length}問** しかありません！\nルールの「勝利条件・問題数」を減らすか、ジャンルを変更してください！` 
         });
       }
 
-      const selectedQuizzes = filteredQuiz.sort(() => 0.5 - Math.random()).slice(0, game.maxQuestions);
-
+      // 🛡️ 重複を解消！1回だけ正しく宣言するように綺麗に整えました
       const selectedQuizzes = filteredQuiz.sort(() => 0.5 - Math.random()).slice(0, game.maxQuestions);
       game.questions = [];
       for (const quiz of selectedQuizzes) {
