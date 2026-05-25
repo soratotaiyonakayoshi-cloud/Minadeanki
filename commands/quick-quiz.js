@@ -2,8 +2,9 @@ const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, Attac
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 
-// 🌐 設定エリア（環境変数から安全に読み込む形に変更！）
+// 🌐 設定エリア
 const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
+const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL; // 👈 これが漏れていないかチェック！
 
 async function getQuizDataFromSheets() {
   try {
