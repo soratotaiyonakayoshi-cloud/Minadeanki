@@ -220,11 +220,18 @@ app.get('/', async (req, res) => {
           .save-btn { background: #349E5A; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; }
           .cancel-btn { background: #e2e8f0; color: #475569; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: bold; text-align: center; flex: 1; }
         </style>
-      </head>
+   </head>
       <body>
         <div class="header">
           <h1>🎓 みんなで暗記！</h1>
           <p>クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
+          
+          <div class="mt-3">
+            <a href="<?= ScriptApp.getService().getUrl() ?>?page=howto" class="btn btn-info text-white fw-bold shadow-sm">
+              <i class="bi bi-book me-1"></i> 📖 使い方ガイドを開く
+            </a>
+          </div>
+          
         </div>
 
         <div class="settings-accordion" id="settingsAccordion">
