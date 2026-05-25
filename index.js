@@ -153,6 +153,14 @@ app.get('/', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>みんなで暗記！ ダッシュボード</title>
         <style>
+        <body>
+    <ul class="bg-shapes">
+      <li class="shape"></li><li class="shape"></li><li class="shape"></li>
+      <li class="shape"></li><li class="shape"></li><li class="shape"></li>
+      <li class="shape"></li><li class="shape"></li><li class="shape"></li><li class="shape"></li>
+    </ul>
+
+    <div class="container">
           /* 🌟 使い方ガイドとお揃いのグラデーション背景 */
         body { 
           font-family: 'Helvetica Neue', Arial, sans-serif; 
