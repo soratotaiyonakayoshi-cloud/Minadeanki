@@ -1,5 +1,6 @@
 require('dotenv').config();
 const fs = require('node:fs');
+const path = require('path');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 
@@ -11,8 +12,8 @@ const client = new Client({
 client.commands = new Collection();
 
 // 📂 commands フォルダ内のすべての .js ファイルを読み込む
-const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const commandsPath = path.join(__dirname, 'commands'); // フォルダ名が「commands」の場合
+const commandFiles = fs.readdirSync(commandsPath);
 
 const commandsData = [];
 
@@ -40,7 +41,7 @@ client.once('ready', async () => {
 
 // 📂 events フォルダ内のイベントファイルを読み込む
 const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+const eventFiles = fs.readdirSync(eventsPath);
 
 for (const file of eventFiles) {
   const filePath = path.join(eventsPath, file);
