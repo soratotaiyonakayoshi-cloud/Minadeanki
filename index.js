@@ -57,7 +57,7 @@ for (const file of eventFiles) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 💡 Web画面のフォームから送られてきた文字データを解析できるようにする設定
+// Web画面のフォームから送られてきた文字データを解析できるようにする設定
 app.use(express.urlencoded({ extended: true }));
 
 // 🖼️ 画像フォルダの公開
@@ -75,14 +75,27 @@ app.get('/', async (req, res) => {
     // クイズ一覧のカードHTMLを作成
     let quizCardsHtml = '';
     for (const quiz of allQuizData) {
+      // 💡 スプレッドシートのIDを取得（念のため空ならハイフンにする）
+      const quizId = quiz.id || '-';
+
       quizCardsHtml += `
         <div class="quiz-card">
-          <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
-          <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
+          <div class="card-header-tags">
+            <span class="id-badge"># ${quizId}</span>
+            <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
+            <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
+          </div>
           <h3>Q. ${quiz.question}</h3>
           <p><strong>A.</strong> <span class="answer">${quiz.answer}</span></p>
           ${quiz.explanation ? `<p class="explanation">💡 ${quiz.explanation}</p>` : ''}
           ${quiz.image ? `<p class="has-image">🖼️ 画像: ${quiz.image}</p>` : ''}
+          
+          <div class="card-actions">
+            <form action="/delete-quiz" method="POST" onsubmit="return confirm('本当にこのクイズを削除してもよろしいですか？');" style="margin:0; width:100%;">
+              <input type="hidden" name="id" value="${quizId}">
+              <button type="submit" class="delete-btn">🗑️ 削除する</button>
+            </form>
+          </div>
         </div>
       `;
     }
@@ -202,7 +215,22 @@ app.get('/', async (req, res) => {
             padding: 1.5rem;
             border-radius: 16px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .card-header-tags {
+            margin-bottom: 1rem;
+          }
+          .id-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            color: #e2e8f0;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
           }
           .genre-badge {
             display: inline-block;
@@ -213,7 +241,6 @@ app.get('/', async (req, res) => {
             font-size: 0.8rem;
             font-weight: bold;
             margin-right: 0.5rem;
-            margin-bottom: 1rem;
           }
           .diff-badge {
             display: inline-block;
@@ -247,6 +274,30 @@ app.get('/', async (req, res) => {
             font-size: 0.8rem;
             color: #fcd34d;
             margin-top: 0.5rem;
+          }
+          
+          /* 🗑️ 削除ボタン用の追加CSS */
+          .card-actions {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: flex-end;
+          }
+          .delete-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 0.4rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: all 0.2s;
+          }
+          .delete-btn:hover {
+            background: #ef4444;
+            color: white;
           }
         </style>
       </head>
@@ -306,16 +357,18 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 🚀 フォームからデータを受け取ってGASに送る設定
+// 🚀 フォームからデータを受け取ってGASに「追加」命令を送る設定
 app.post('/add-quiz', async (req, res) => {
   try {
     const { genre, difficulty, question, answer, explanation, image } = req.body;
     const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
-    console.log('📝 ダッシュボードからデータを受信しました:', req.body);
+    console.log('📝 ダッシュボードから追加データを受信しました:', req.body);
 
+    // 💡 action: 'add' を明示的に指定して送るようにパワーアップ！
     await axios.get(GAS_WEB_APP_URL, {
       params: {
+        action: 'add',
         genre: genre,
         difficulty: difficulty,
         question: question,
@@ -337,6 +390,37 @@ app.post('/add-quiz', async (req, res) => {
   } catch (error) {
     console.error('ダッシュボードからの追加エラー💦', error);
     res.send('<h2 style="color:white; text-align:center;">登録中にエラーが発生しました。GASの設定を確認してください。</h2>');
+  }
+});
+
+// 🚀 【新設】画面の削除ボタンからIDを受け取って、GASに「削除」命令を送る設定
+app.post('/delete-quiz', async (req, res) => {
+  try {
+    const { id } = req.body;
+    const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
+
+    console.log(`🗑️ ダッシュボードからID ${id} の削除要請を受信しました`);
+
+    // 💡 action: 'delete' と、消したい 'id' をGASに横流し！
+    await axios.get(GAS_WEB_APP_URL, {
+      params: {
+        action: 'delete',
+        id: id
+      }
+    });
+
+    res.send(`
+      <div style="background:#0f172a; color:white; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+        <h1 style="color:#ef4444;">🗑️ クイズを正常に消去しました</h1>
+        <p style="color:#94a3b8;">画面を更新しています...</p>
+        <script>
+          setTimeout(() => { window.location.href = '/'; }, 1500);
+        </script>
+      </div>
+    `);
+  } catch (error) {
+    console.error('ダッシュボードからの削除エラー💦', error);
+    res.send('<h2 style="color:white; text-align:center;">削除中にエラーが発生しました。</h2>');
   }
 });
 
