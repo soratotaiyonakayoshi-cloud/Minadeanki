@@ -59,6 +59,7 @@ client.login(process.env.DISCORD_TOKEN); // 👈 環境変数から読み込む
 // 🌐 Renderのポート開放＆生存確認用の即席Webサーバー
 const express = require('express');
 const app = express();
+app.use('/images', express.static('images'));
 const PORT = process.env.PORT || 3000;
 
 // Renderが「生きてる？」って確認しに来たときに「生きてるよ！」と返す
