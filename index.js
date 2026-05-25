@@ -2,8 +2,7 @@ require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
-const express = require('express'); // 🌐 Webサーバー用の部品を追加！
-// 💡 この2行を追加！スプレッドシートを読み込むための部品です
+const express = require('express');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 
@@ -11,13 +10,10 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// 📁 コマンドをコレクション（記憶領域）に格納する準備
+// 📁 コマンド設定
 client.commands = new Collection();
-
-// 📂 commands フォルダ内のすべての .js ファイルを読み込む
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath);
-
 const commandsData = [];
 
 for (const file of commandFiles) {
@@ -31,7 +27,6 @@ for (const file of commandFiles) {
   }
 }
 
-// ⚙️ 起動時にスラッシュコマンドをDiscordに登録・更新する処理
 client.once('ready', async () => {
   console.log(`✨ 成功！ ${client.user.tag} がオンラインになりました！`);
   try {
@@ -42,7 +37,7 @@ client.once('ready', async () => {
   }
 });
 
-// 📂 events フォルダ内のイベントファイルを読み込む
+// 📂 イベント読み込み
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath);
 
@@ -57,39 +52,42 @@ for (const file of eventFiles) {
 }
 
 // ==========================================
-// 🌐 【新設】魔法のWebダッシュボード制御エリア
+// 🌐 魔法のWebダッシュボード制御エリア
 // ==========================================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🖼️ 以前作った「images」フォルダをWebに公開する設定（画像表示用）
+// 💡 【重要】Web画面のフォームから送られてきた文字（データ）を解析できるようにする設定
+app.use(express.urlencoded({ extended: true }));
+
+// 🖼️ 画像フォルダの公開
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// 🏠 ダッシュボードのトップページ（クイズ一覧表示）
+// 🏠 ダッシュボードのトップページ（クイズ一覧 ＆ 新規追加フォーム）
 app.get('/', async (req, res) => {
   try {
-    // ① スプレッドシートから最新のクイズデータを取得！
     const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
     const response = await axios.get(SPREADSHEET_CSV_URL, {
       headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' }
     });
     const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
 
-    // ② クイズのデータを、カッコいい「カード」のHTMLに変換する
+    // クイズ一覧のカードHTMLを作成
     let quizCardsHtml = '';
     for (const quiz of allQuizData) {
       quizCardsHtml += `
         <div class="quiz-card">
           <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
+          <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
           <h3>Q. ${quiz.question}</h3>
           <p><strong>A.</strong> <span class="answer">${quiz.answer}</span></p>
           ${quiz.explanation ? `<p class="explanation">💡 ${quiz.explanation}</p>` : ''}
-          ${quiz.image ? `<p class="has-image">🖼️ 画像あり</p>` : ''}
+          ${quiz.image ? `<p class="has-image">🖼️ 画像: ${quiz.image}</p>` : ''}
         </div>
       `;
     }
 
-    // ③ 組み立てたカードをWeb画面として送信！
+    // 画面全体のHTMLを送信
     res.send(`
       <!DOCTYPE html>
       <html lang="ja">
@@ -120,6 +118,76 @@ app.get('/', async (req, res) => {
             color: #94a3b8;
             font-size: 1.2rem;
           }
+          
+          /* フォーム全体のデザイン */
+          .form-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 0 auto 4rem auto;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          }
+          .form-container h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: #38bdf8;
+            border-bottom: 2px solid rgba(56, 189, 248, 0.2);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+          }
+          .form-group {
+            margin-bottom: 1.2rem;
+          }
+          .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+          }
+          .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+          }
+          .form-control:focus {
+            outline: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+          }
+          .form-row {
+            display: flex;
+            gap: 1rem;
+          }
+          .form-row .form-group {
+            flex: 1;
+          }
+          .submit-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(to right, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 1rem;
+          }
+          .submit-btn:hover {
+            opacity: 0.9;
+          }
+
+          /* クイズ一覧のグリッド */
           .quiz-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -134,11 +202,7 @@ app.get('/', async (req, res) => {
             padding: 1.5rem;
             border-radius: 16px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s;
-          }
-          .quiz-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(56, 189, 248, 0.5);
+            position: relative;
           }
           .genre-badge {
             display: inline-block;
@@ -148,7 +212,17 @@ app.get('/', async (req, res) => {
             border-radius: 9999px;
             font-size: 0.8rem;
             font-weight: bold;
+            margin-right: 0.5rem;
             margin-bottom: 1rem;
+          }
+          .diff-badge {
+            display: inline-block;
+            background: #eab308;
+            color: #1e1b4b;
+            padding: 0.3rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: bold;
           }
           .quiz-card h3 {
             margin: 0 0 1rem 0;
@@ -181,22 +255,36 @@ app.get('/', async (req, res) => {
           <h1>🔮 QUIZ BOT DASHBOARD</h1>
           <p>現在登録されているクイズ一覧（全 ${allQuizData.length} 問）</p>
         </div>
-        <div class="quiz-grid">
-          ${quizCardsHtml}
-        </div>
-      </body>
-      </html>
-    `);
-  } catch (error) {
-    console.error('ダッシュボードでのクイズ読み込みエラー:', error);
-    res.send('<h2 style="color:white; text-align:center;">エラーが発生しました。スプレッドシートの読み込みに失敗しました。</h2>');
-  }
-});
 
-// ⚡ サーバーの起動
-app.listen(PORT, () => {
-  console.log(`🌐 Webサーバーがポート ${PORT} で起動しました！`);
-});
+        <div class="form-container">
+          <h2>➕ 新しいクイズを追加する</h2>
+          <form action="/add-quiz" method="POST">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="genre">🏷️ ジャンル</label>
+                <input type="text" id="genre" name="genre" class="form-control" placeholder="例: アニメ, 歴史" required>
+              </div>
+              <div class="form-group">
+                <label for="difficulty">⭐ 難易度 (1〜5)</label>
+                <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required>
+              </div>
+            </div>
 
-// 🔑 あなたのBOT_TOKENでDiscord Botをログイン
-client.login(process.env.BOT_TOKEN);
+            <div class="form-group">
+              <label for="question">❓ 問題文</label>
+              <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="answer">✅ 正解の答え</label>
+              <input type="text" id="answer" name="answer" class="form-control" placeholder="4択の正解になる単語" required>
+            </div>
+
+            <div class="form-group">
+              <label for="explanation">💡 解説（任意）</label>
+              <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="正解発表時に表示される解説文"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="image">🖼️ 画像ファイル名（任意）</label>
+              <input type="text" id="image" name="image" class="form-control" placeholder="例
