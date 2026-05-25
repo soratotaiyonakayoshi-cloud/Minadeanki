@@ -93,14 +93,23 @@ if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
     components: [row]
   };
 
-  // 💡 ⑤もし画像があれば、添付ファイルとして一緒に送信する！
+ // 💡 ⑤もし画像があれば、添付ファイルとして一緒に送信する！
   if (quizAttachment) {
     sendOptions.files = [quizAttachment];
   }
 
-  const msg = await thread.send(sendOptions);
+  // 🛡️ ここからバリア！画像エラーで止まらないようにする
+  try {
+    const msg = await thread.send(sendOptions);
+    gameData.currentMessage = msg;
+  } catch (error) {
+    console.error('画像送信エラー:', error);
+    delete sendOptions.files; // エラーの原因になる画像を外す
+    sendOptions.content += '\n\n⚠️ *(※画像のURLが読み込めなかったため、画像なしで出題しました)*';
+    const fallbackMsg = await thread.send(sendOptions).catch(e => console.log(e));
+    if (fallbackMsg) gameData.currentMessage = fallbackMsg;
+  }
 
-  gameData.currentMessage = msg;
   gameData.timer = setTimeout(async () => { await endRound(thread, gameData); }, gameData.timeLimit * 1000);
 }
 
@@ -177,14 +186,23 @@ if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
     components: [row]
   };
 
-  // 💡 画像があれば添付ファイルとしてドッキング
+// 💡 画像があれば添付ファイルとしてドッキング
   if (quizAttachment) {
     sendOptions.files = [quizAttachment];
   }
 
-  const msg = await thread.send(sendOptions);
+  // 🛡️ ここにもバリア！
+  try {
+    const msg = await thread.send(sendOptions);
+    gameData.currentMessage = msg;
+  } catch (error) {
+    console.error('画像送信エラー:', error);
+    delete sendOptions.files;
+    sendOptions.content += '\n\n⚠️ *(※画像のURLが読み込めなかったため、画像なしで出題しました)*';
+    const fallbackMsg = await thread.send(sendOptions).catch(e => console.log(e));
+    if (fallbackMsg) gameData.currentMessage = fallbackMsg;
+  }
 
-  gameData.currentMessage = msg;
   gameData.timer = setTimeout(async () => { await endRound(thread, gameData); }, gameData.timeLimit * 1000);
 }
 
