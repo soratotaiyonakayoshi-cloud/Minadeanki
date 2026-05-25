@@ -81,11 +81,11 @@ async function sendGameQuestion(thread, gameData) {
   let imageContent = '';
   let quizAttachment = null; // 💡 ①画像を添付するための空箱を用意する！
 
-  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-  imageContent = `\n\n🖼️ **【画像問題】**`;
-  // GASを通さず、直接URLをそのまま読み込ませる！
-  quizAttachment = new AttachmentBuilder(currentQuiz.image);
-}
+if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+    imageContent = `\n\n🖼️ **【画像問題】**`;
+    // 💡 古いコードは消して、直接URLを読み込ませるこの1行にする！
+    quizAttachment = new AttachmentBuilder(currentQuiz.image);
+  }
 
   // 💡 ④送信するオプションの形を整える
   const sendOptions = {
@@ -165,11 +165,11 @@ async function exposeBettingQuestion(thread, gameData) {
   let imageContent = '';
   let quizAttachment = null; // 💡 ベッティングモード用にも同じ空箱を用意する！
 
-  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-  imageContent = `\n\n🖼️ **【画像問題】**`;
-  // GASを通さず、直接URLをそのまま読み込ませる！
-  quizAttachment = new AttachmentBuilder(currentQuiz.image);
-}
+if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+    imageContent = `\n\n🖼️ **【画像問題】**`;
+    // 💡 直接URLを読み込ませる形にします！
+    quizAttachment = new AttachmentBuilder(currentQuiz.image);
+  }
 
   // 💡 送信する中身をオブジェクト化
   const sendOptions = {
