@@ -6,7 +6,9 @@ const { OpenAI } = require('openai');
 // 🌐 設定エリア（環境変数から安全に読み込む形に変更！）
 const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
 const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+// 💡 ここ！ process.env.OPENAI_API_KEY から直接読み込むようにします
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function getQuizDataFromSheets() {
   try {
