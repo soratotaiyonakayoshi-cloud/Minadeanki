@@ -419,7 +419,15 @@ module.exports = {
       const allQuizData = await getQuizDataFromSheets();
       let filteredQuiz = allQuizData;
       if (game.genre !== 'all') filteredQuiz = allQuizData.filter(q => q.genre === game.genre);
-      if (filteredQuiz.length === 0) return interaction.editReply({ content: '指定されたジャンルの問題が足りません！' });
+      
+      // 💡 設定した問題数（game.maxQuestions）より少なかったら、警告して止めるように変更！
+      if (filteredQuiz.length < game.maxQuestions) {
+        return interaction.editReply({ 
+          content: `❌ 指定されたジャンルには問題が **${filteredQuiz.length}問** しかありません！\nルールの「勝利条件・問題数」を減らすか、ジャンルを変更してください！` 
+        });
+      }
+
+      const selectedQuizzes = filteredQuiz.sort(() => 0.5 - Math.random()).slice(0, game.maxQuestions);
 
       const selectedQuizzes = filteredQuiz.sort(() => 0.5 - Math.random()).slice(0, game.maxQuestions);
       game.questions = [];
