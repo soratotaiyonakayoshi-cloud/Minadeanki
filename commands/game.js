@@ -62,11 +62,15 @@ module.exports = {
       ]);
 
     // ⏱️ 動的メニュー生成（ダッシュボードで変な数字が設定されても対応可能！）
-    const timeOptions = [
-      { label: '瞬発力特化！ (5秒)', value: '5' },
-      { label: '標準モード (15秒)', value: '15' },
-      { label: 'じっくり思考 (30秒)', value: '30' }
-    ];
+    // ⏱️ 制限時間の選択肢を豊富にしておく
+const timeOptions = [
+  { label: '瞬発力特化！ (5秒)', value: '5' },
+  { label: '少し早め (10秒)', value: '10' },
+  { label: '標準モード (15秒)', value: '15' },
+  { label: '少し長め (20秒)', value: '20' },
+  { label: 'じっくり思考 (30秒)', value: '30' },
+  { label: '超長考 (60秒)', value: '60' }
+];
     if (![5, 15, 30].includes(defaultTime)) {
       timeOptions.push({ label: `⚙️ カスタム設定 (${defaultTime}秒)`, value: String(defaultTime) });
     }
@@ -78,11 +82,13 @@ module.exports = {
       .addOptions(timeOptions);
 
     // 🏆 動的メニュー生成（問題数）
-    const ruleOptions = [
-      { label: 'サクッと3問勝負', value: '3' },
-      { label: 'たっぷり5問耐久レース', value: '5' },
-      { label: 'ガチ勉強会（10問）', value: '10' }
-    ];
+   const ruleOptions = [
+  { label: 'サクッと (3問)', value: '3' },
+  { label: '標準 (5問)', value: '5' },
+  { label: '少し長め (7問)', value: '7' },
+  { label: 'ガチ勉強会 (10問)', value: '10' },
+  { label: '耐久レース (20問)', value: '20' }
+];
     if (![3, 5, 10].includes(defaultCount)) {
       ruleOptions.push({ label: `⚙️ カスタム設定 (${defaultCount}問)`, value: String(defaultCount) });
     }
