@@ -78,10 +78,18 @@ async function sendGameQuestion(thread, gameData) {
 
   let modeInfo = gameData.mode === 'survival' ? `❤️ あなたの残りライフに注意！` : `🏆 早押し高得点チャンス！`;
   
-  let imageContent = '';
-  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-    imageContent = `\n\n🖼️ **【画像問題】**\n${currentQuiz.image}`;
-  }
+let imageContent = '';
+
+if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+  // 1. 画像のURLを安全に暗号化（エンコード）する
+  const encodedUrl = encodeURIComponent(currentQuiz.image);
+  
+  // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
+  const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+  
+  // 3. 変換した安全なURLをメッセージに載せる！
+  imageContent = `\n\n🖼️ **【画像問題】**\n${proxyImageUrl}`;
+} // 👈 この最後の閉じカッコが漏れていました！
 
   const msg = await thread.send({
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / 全 ${gameData.maxQuestions} 問**\n⏱️ 制限時間: **${gameData.timeLimit}秒** ➜ [${gameData.mode === 'survival' ? 'サバイバルモード' : '通常スコアモード'}]\n━━━━━━━━━━━━━━━━━━━━━━━━\n${modeInfo}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
@@ -150,10 +158,18 @@ async function exposeBettingQuestion(thread, gameData) {
   const row = new ActionRowBuilder().addComponents(buttons);
   gameData.roundStartTime = Date.now();
 
-  let imageContent = '';
-  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-    imageContent = `\n\n🖼️ **【画像問題】**\n${currentQuiz.image}`;
-  }
+let imageContent = '';
+
+if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+  // 1. 画像のURLを安全に暗号化（エンコード）する
+  const encodedUrl = encodeURIComponent(currentQuiz.image);
+  
+  // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
+  const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+  
+  // 3. 変換した安全なURLをメッセージに載せる！
+  imageContent = `\n\n🖼️ **【画像問題】**\n${proxyImageUrl}`;
+} // 👈 この最後の閉じカッコが漏れていました！
 
   const msg = await thread.send({
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / クイズオープン！**\n⏱️ 制限時間: **${gameData.timeLimit}秒**\n━━━━━━━━━━━━━━━━━━━━━━━━\n${betStatusText}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
