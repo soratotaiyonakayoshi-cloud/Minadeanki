@@ -153,7 +153,53 @@ app.get('/', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>みんなで暗記！ ダッシュボード</title>
         <style>
-          body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; color: #333333; margin: 0; padding: 2rem; }
+          /* 🌟 使い方ガイドとお揃いのグラデーション背景 */
+        body { 
+          font-family: 'Helvetica Neue', Arial, sans-serif; 
+          margin: 0; padding: 2rem; line-height: 1.6;
+          background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+          color: #333333;
+          position: relative;
+          overflow-x: hidden;
+          min-height: 100vh;
+        }
+        
+        /* 🌟 ふわふわ浮遊する図形たちの設定（共通） */
+        .bg-shapes { 
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+          z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0;
+        }
+        .shape { 
+          position: absolute; display: block; list-style: none; 
+          background: rgba(255, 255, 255, 0.4); 
+          animation: float 25s linear infinite; bottom: -150px; 
+        }
+        .shape:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .shape:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; border-radius: 50%; }
+        .shape:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+        .shape:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; border-radius: 50%; }
+        .shape:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+        .shape:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+        .shape:nth-child(7) { left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
+        .shape:nth-child(8) { left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+        .shape:nth-child(9) { left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; border-radius: 50%; }
+        .shape:nth-child(10) { left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s; }
+
+        @keyframes float {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 0; }
+          100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 50%; }
+        }
+
+        /* 🌟 メインのコンテンツ枠（すりガラス風に上書き） */
+        .container { 
+          max-width: 1000px; /* 元の幅に合わせて調整してください */
+          margin: 0 auto; 
+          background: rgba(255, 255, 255, 0.85) !important; /* 半透明化 */
+          backdrop-filter: blur(10px); /* すりガラス効果 */
+          padding: 2.5rem; border-radius: 16px; 
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+          position: relative; z-index: 1; 
+        }
           .header { text-align: center; margin-bottom: 2rem; }
           h1 { font-size: 2.8rem; background: linear-gradient(to right, #175697, #349E5A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; letter-spacing: 2px; }
           .header p { color: #555555; font-size: 1.1rem; font-weight: bold; }
@@ -326,7 +372,7 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 💡 【新設】使い方ガイド専用のページ
+// 💡 【新設】使い方ガイド専用のページ（超豪華・浮遊アニメーション背景版✨）
 app.get('/how-to-use', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -336,17 +382,66 @@ app.get('/how-to-use', (req, res) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>使い方ガイド - みんなで暗記！</title>
       <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; color: #333333; margin: 0; padding: 2rem; line-height: 1.6; }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 6px solid #175697; }
+        /* 🌟 リッチなグラデーション背景 */
+        body { 
+          font-family: 'Helvetica Neue', Arial, sans-serif; 
+          margin: 0; padding: 2rem; line-height: 1.6;
+          background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+          color: #333333;
+          position: relative;
+          overflow-x: hidden;
+        }
+        
+        /* 🌟 ふわふわ浮遊する図形たちの設定 */
+        .bg-shapes { 
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+          z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0;
+        }
+        .shape { 
+          position: absolute; display: block; list-style: none; 
+          background: rgba(255, 255, 255, 0.4); 
+          animation: float 25s linear infinite; bottom: -150px; 
+        }
+        .shape:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .shape:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; border-radius: 50%; }
+        .shape:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+        .shape:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; border-radius: 50%; }
+        .shape:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+        .shape:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+        .shape:nth-child(7) { left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
+        .shape:nth-child(8) { left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+        .shape:nth-child(9) { left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; border-radius: 50%; }
+        .shape:nth-child(10) { left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s; }
+
+        @keyframes float {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 0; }
+          100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 50%; }
+        }
+
+        /* 🌟 メインコンテンツ（すりガラス風） */
+        .container { 
+          max-width: 800px; margin: 0 auto; 
+          background: rgba(255, 255, 255, 0.85); /* 半透明にして背景を透かせる */
+          backdrop-filter: blur(10px); /* すりガラス効果 */
+          padding: 2.5rem; border-radius: 16px; 
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+          border-top: 6px solid #175697; position: relative; z-index: 1; 
+        }
         h1 { color: #175697; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-top: 0; }
         h2 { color: #349E5A; margin-top: 2rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.5rem; }
-        .back-btn { display: inline-block; margin-bottom: 1.5rem; color: #475569; text-decoration: none; font-weight: bold; background: #e2e8f0; padding: 0.5rem 1rem; border-radius: 6px; }
-        .back-btn:hover { background: #cbd5e1; }
+        .back-btn { display: inline-block; margin-bottom: 1.5rem; color: #475569; text-decoration: none; font-weight: bold; background: #e2e8f0; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.2s; }
+        .back-btn:hover { background: #cbd5e1; transform: translateY(-2px); }
         .cmd { display: inline-block; background: #ffe4e6; color: #e11d48; padding: 0.2rem 0.6rem; border-radius: 4px; font-family: monospace; font-weight: bold; margin-right: 0.5rem; }
-        .card { background: #f8fafc; border-left: 4px solid #175697; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; }
+        .card { background: rgba(248, 250, 252, 0.9); border-left: 4px solid #175697; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
       </style>
     </head>
     <body>
+      <ul class="bg-shapes">
+        <li class="shape"></li><li class="shape"></li><li class="shape"></li>
+        <li class="shape"></li><li class="shape"></li><li class="shape"></li>
+        <li class="shape"></li><li class="shape"></li><li class="shape"></li><li class="shape"></li>
+      </ul>
+
       <div class="container">
         <a href="/" class="back-btn">← ダッシュボードに戻る</a>
         <h1>📖 クイズBot 使い方ガイド</h1>
