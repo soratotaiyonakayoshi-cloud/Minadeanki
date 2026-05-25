@@ -1,8 +1,17 @@
-"dependencies": {
+{
+  "name": "minadeanki",
+  "version": "1.0.0",
+  "description": "Discord Quiz Bot and Dashboard",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
     "axios": "^1.6.8",
     "csv-parse": "^5.5.6",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "multer": "^1.4.5-lts.1" 
-  },
+    "multer": "^1.4.5-lts.1"
+  }
+}
