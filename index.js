@@ -227,10 +227,11 @@ app.get('/', async (req, res) => {
           <p>クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
           
           <div class="mt-3">
-            <a href="?page=howto" class="btn btn-info text-white fw-bold shadow-sm">
+            <a href="<?= ScriptApp.getService().getUrl() ?>?page=howto" class="btn btn-info text-white fw-bold shadow-sm" target="_top">
               <i class="bi bi-book me-1"></i> 📖 使い方ガイドを開く
             </a>
           </div>
+        </div>
           
         </div>
 
