@@ -225,6 +225,8 @@ app.get('/', async (req, res) => {
           .csv-btn:hover { background: #004480; }
           .csv-dl-link { display: inline-block; text-decoration: none; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
           .csv-dl-link:hover { background: #e2e8f0; color: #1e293b; }
+          .csv-maker-link { display: inline-block; text-decoration: none; background: #009944; color: white; border: 1px solid #007a36; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
+          .csv-maker-link:hover { background: #007a36; }
 
           .form-container { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #009944; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 3rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
           .form-container h2 { margin-top: 0; font-size: 1.4rem; color: #009944; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.8rem; margin-bottom: 1.5rem; }
@@ -313,14 +315,15 @@ app.get('/', async (req, res) => {
 
           <div class="csv-panel">
             <h3>📥 CSV一括操作 ＆ テンプレート</h3>
-            <p>ExcelやGoogleスプレッドシートで作成したCSVデータ（小区分対応）を一括追加、または現在の全データをバックアップとして書き出しできます。</p>
+            <p>ExcelやGoogleスプレッドシートで作成したCSVデータの追加、バックアップ、または初心者向けのポチポチ作成を行えます。</p>
             <div class="csv-flex">
               <form action="/upload-csv" method="POST" enctype="multipart/form-data" class="csv-form">
                 <input type="file" name="csv_file" accept=".csv" required class="csv-input">
                 <button type="submit" class="csv-btn">🚀 一括登録</button>
               </form>
-              <div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <a href="/download-csv" class="csv-dl-link">📄 全データCSVをダウンロード</a>
+                <a href="/csv-generator" class="csv-maker-link">💻 ポチポチCSV下書きメーカー</a>
               </div>
             </div>
           </div>
@@ -496,6 +499,210 @@ app.get('/how-to-use', (req, res) => {
   `);
 });
 
+// 💻 初心者向けCSVジェネレーター（ポチポチ下書きメーカー）画面
+app.get('/csv-generator', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="ja">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>ポチポチCSV下書きメーカー</title>
+      <style>
+        body { 
+          font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 2rem; line-height: 1.6;
+          background: linear-gradient(135deg, #005bac 0%, #009944 100%); color: #222222; min-height: 100vh;
+        }
+        .container { 
+          max-width: 900px; margin: 0 auto; background: rgba(255, 255, 255, 0.92); 
+          backdrop-filter: blur(12px); padding: 2.5rem; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); 
+        }
+        .back-btn { display: inline-block; margin-bottom: 1.5rem; color: #ffffff; text-decoration: none; font-weight: bold; background: #005bac; padding: 0.5rem 1rem; border-radius: 6px; }
+        h1 { color: #009944; margin-top: 0; font-size: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+        p.desc { color: #556677; font-size: 0.95rem; margin-bottom: 2rem; }
+        
+        .maker-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+        @media(min-width: 768px) { .maker-layout { grid-template-columns: 380px 1fr; } }
+        
+        .form-box { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 5px solid #009944; height: fit-content; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: bold; font-size: 0.9rem; color: #3b4a5a; }
+        .form-control { width: 100%; padding: 0.6rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
+        .form-control:focus { outline: none; border-color: #009944; background: #fff; }
+        
+        .add-list-btn { width: 100%; padding: 0.8rem; background: #009944; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .add-list-btn:hover { background: #007a36; }
+        
+        .list-box { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 5px solid #005bac; display: flex; flex-direction: column; }
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f1f5f9; }
+        .list-count { font-weight: bold; color: #005bac; font-size: 1.1rem; }
+        
+        .download-btn { background: #ff9900; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; box-shadow: 0 4px 8px rgba(255,153,0,0.25); }
+        .download-btn:hover { background: #e08800; }
+        
+        .preview-scroll { max-height: 450px; overflow-y: auto; padding-right: 5px; }
+        .draft-item { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #005bac; padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 0 6px 6px 0; position: relative; }
+        .draft-tags { font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 0.3rem; }
+        .draft-tags span { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
+        .draft-q { font-weight: bold; margin: 0; font-size: 0.95rem; color: #1e293b; padding-right: 2rem; }
+        .draft-a { margin: 3px 0 0 0; font-size: 0.85rem; color: #009944; font-weight: bold; }
+        .remove-draft-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #e11d48; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+        .empty-text { color: #94a3b8; text-align: center; padding: 3rem 0; font-style: italic; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <a href="/" class="back-btn">← 管理画面に戻る</a>
+        <h1>💻 ポチポチCSV下書きメーカー</h1>
+        <p class="desc">ここでは、Excelが使えない人でもフォームに文字を入れるだけで一括登録用CSVファイルを安全に作成できます。<br>追加したデータはあなたのパソコン（ブラウザ）の中にだけ保存されるので、壊れる心配はありません！作り終わったらダウンロードして管理者に渡してください。</p>
+        
+        <div class="maker-layout">
+          <div class="form-box">
+            <div class="form-group">
+              <label>🏷️ ジャンル（大区分） *</label>
+              <input type="text" id="g_genre" class="form-control" placeholder="例: 有機化学, アニメ" required>
+            </div>
+            <div class="form-group">
+              <label>📂 小区分（単元名など）</label>
+              <input type="text" id="g_sub" class="form-control" placeholder="例: αアミノ酸">
+            </div>
+            <div class="form-group">
+              <label>⭐ 難易度 (1〜5)</label>
+              <input type="number" id="g_diff" class="form-control" min="1" max="5" value="1">
+            </div>
+            <div class="form-group">
+              <label>❓ 問題文 *</label>
+              <textarea id="g_question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea>
+            </div>
+            <div class="form-group">
+              <label>✅ 正解の答え *</label>
+              <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required>
+            </div>
+            <div class="form-group">
+              <label>💡 解説（任意）</label>
+              <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea>
+            </div>
+            <button type="button" class="add-list-btn" onclick="addQuizToList()">➕ 下書きリストに追加</button>
+          </div>
+          
+          <div class="list-box">
+            <div class="list-header">
+              <div class="list-count">📋 下書きリスト (<span id="count-num">0</span> 件)</div>
+              <button type="button" class="download-btn" onclick="downloadCSV()">📥 CSVをダウンロード</button>
+            </div>
+            
+            <div class="preview-scroll" id="preview-area">
+              <div class="empty-text">まだデータがありません。左のフォームから追加してください。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        let quizList = [];
+
+        // 画面上のリストにクイズを追加する処理
+        function addQuizToList() {
+          const genre = document.getElementById('g_genre').value.trim();
+          const sub_genre = document.getElementById('g_sub').value.trim();
+          const difficulty = document.getElementById('g_diff').value || 1;
+          const question = document.getElementById('g_question').value.trim();
+          const answer = document.getElementById('g_answer').value.trim();
+          const explanation = document.getElementById('g_exp').value.trim();
+
+          if (!genre || !question || !answer) {
+            alert('「ジャンル」「問題文」「正解の答え」は必須入力です！');
+            return;
+          }
+
+          // リスト用データオブジェクト
+          const newQuiz = { genre, sub_genre, difficulty, question, answer, explanation };
+          quizList.push(newQuiz);
+
+          // フォームの問題、答え、解説だけをクリア（ジャンルや難易度は連続入力用に残す）
+          document.getElementById('g_question').value = '';
+          document.getElementById('g_answer').value = '';
+          document.getElementById('g_exp').value = '';
+
+          updatePreview();
+        }
+
+        // 指定インデックスのアイテムを削除
+        function removeQuiz(index) {
+          quizList.splice(index, 1);
+          updatePreview();
+        }
+
+        // リスト表示を更新
+        function updatePreview() {
+          const area = document.getElementById('preview-area');
+          const countSpan = document.getElementById('count-num');
+          countSpan.textContent = quizList.length;
+
+          if (quizList.length === 0) {
+            area.innerHTML = '<div class="empty-text">まだデータがありません。左のフォームから追加してください。</div>';
+            return;
+          }
+
+          let html = '';
+          quizList.forEach((q, idx) => {
+            html += \`
+              <div class="draft-item">
+                <div class="draft-tags">
+                  <span>🏷️ \${escapeHtml(q.genre)}</span>
+                  \${q.sub_genre ? \`<span>📂 \${escapeHtml(q.sub_genre)}</span>\` : ''}
+                  <span>⭐ \${q.difficulty}</span>
+                </div>
+                <p class="draft-q">Q. \${escapeHtml(q.question)}</p>
+                <p class="draft-a">A. \${escapeHtml(q.answer)}</p>
+                <button type="button" class="remove-draft-btn" onclick="removeQuiz(\${idx})">×</button>
+              </div>
+            \`;
+          });
+          area.innerHTML = html;
+        }
+
+        // HTMLエスケープ処理（安全対策）
+        function escapeHtml(str) {
+          if(!str) return '';
+          return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        // リストを完璧なCSVにして即座にダウンロード
+        function downloadCSV() {
+          if (quizList.length === 0) {
+            alert('下書きリストにクイズが1件も入っていません！');
+            return;
+          }
+
+          // 正しい英語ヘッダーを設定
+          let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation\\n';
+          
+          quizList.forEach(q => {
+            // カンマや改行、ダブルクォーテーションを壊さないためのエスケープ処理
+            const escape = (str) => \`"\${(str || '').replace(/"/g, '""')}"\`;
+            csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)}\\n\`;
+          });
+
+          // Excelで開いても絶対に文字化けしないように「BOM」という魔法の記号を先頭に付与
+          const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+          const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+          
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.setAttribute('href', url);
+          link.setAttribute('download', 'tuat_quiz_draft.csv'); // 保存名
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 // 設定保存
 app.post('/save-settings', async (req, res) => {
   try {
@@ -505,7 +712,7 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ追加（sub_genre対応！）
+// 🛠️ クイズ追加
 app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
@@ -527,7 +734,7 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ編集（sub_genre対応！）
+// 🛠️ クイズ編集
 app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image } = req.body;
@@ -572,7 +779,7 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
       columns: true,       
       skip_empty_lines: true, 
       trim: true,
-      bom: true
+      bom: true // 🌟 前回のBOM対策をここにも適用しておきました！
     });
 
     console.log(`📦 CSVから ${records.length} 件のデータを検出しました。登録を開始します...`);
