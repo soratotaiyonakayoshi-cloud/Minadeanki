@@ -151,7 +151,6 @@ app.get('/', async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>みんなで暗記！ TUATダッシュボード</title>
         <style>
-          /* 🐾 ハッケンコウケン・農工大カラー（工学ブルー ✕ 農学グリーン） */
           body { 
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Segoe UI', sans-serif; 
             margin: 0; padding: 2rem; line-height: 1.6;
@@ -161,8 +160,6 @@ app.get('/', async (req, res) => {
             overflow-x: hidden;
             min-height: 100vh;
           }
-          
-          /* 🌟 背景でフワフワ浮遊する図形（農工大の自然や科学の火をイメージ） */
           .bg-shapes { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0;
@@ -188,24 +185,19 @@ app.get('/', async (req, res) => {
             100% { transform: translateY(-1000px) rotate(540deg); opacity: 0; border-radius: 50%; }
           }
 
-          /* 🌟 高級感のある高透明度すりガラスコンテナ */
           .container { 
-            max-width: 1200px;
-            margin: 0 auto; 
+            max-width: 1200px; margin: 0 auto; 
             background: rgba(255, 255, 255, 0.88); 
-            backdrop-filter: blur(12px); 
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             padding: 2.5rem; border-radius: 20px; 
             box-shadow: 0 15px 35px rgba(0,0,0,0.15); 
             position: relative; z-index: 1; 
           }
           
           .header { text-align: center; margin-bottom: 2rem; }
-          /* 🐾 ロゴ文字も農工大グラデーションに */
           h1 { font-size: 2.8rem; background: linear-gradient(to right, #005bac, #009944); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; letter-spacing: 1px; font-weight: 800; }
           .header p { color: #445566; font-size: 1.1rem; font-weight: bold; }
           
-          /* ⚙️ Discordゲーム設定（工学ブルーのアクセントライン） */
           .settings-accordion {
             max-width: 600px; margin: 0 auto 1.5rem auto; background: rgba(255, 255, 255, 0.95); border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #005bac; overflow: hidden;
@@ -221,7 +213,6 @@ app.get('/', async (req, res) => {
           }
           .settings-accordion.open .accordion-content { display: block; }
           
-          /* ➕ 新規登録エリア（農学グリーンのアクセントライン） */
           .form-container { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #009944; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 3rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
           .form-container h2 { margin-top: 0; font-size: 1.4rem; color: #009944; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.8rem; margin-bottom: 1.5rem; }
           .form-group { margin-bottom: 1.2rem; }
@@ -231,7 +222,6 @@ app.get('/', async (req, res) => {
           .form-row { display: flex; gap: 1rem; }
           .form-row .form-group { flex: 1; }
           
-          /* 🐾 ビビッドイエロー/オレンジ（アクセント） */
           .submit-btn { width: 100%; padding: 1rem; background: #ff9900; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1rem; box-shadow: 0 4px 10px rgba(255, 153, 0, 0.3); }
           .submit-btn:hover { background: #e08800; }
           .settings-save-btn { width: 100%; padding: 0.8rem; background: #005bac; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
@@ -241,13 +231,11 @@ app.get('/', async (req, res) => {
           .bulk-delete-btn { background: #e11d48; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; transition: opacity 0.2s; }
           .bulk-delete-btn:hover { opacity: 0.9; }
 
-          /* タブ切り替え（農工大ブルー） */
           .tabs-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; justify-content: center; }
           .tab-btn { background: #ffffff; border: 2px solid #e2e8f0; color: #475569; padding: 0.5rem 1.5rem; border-radius: 9999px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
           .tab-btn:hover { border-color: #005bac; color: #005bac; }
           .tab-btn.active { background: #005bac; border-color: #005bac; color: #ffffff; }
 
-          /* クイズグリッド */
           .quiz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin: 0 auto; }
           .quiz-card { background: rgba(255, 255, 255, 0.95); border-top: 5px solid #005bac; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s; position: relative; }
           .quiz-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08); }
@@ -382,7 +370,7 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 💡 使い方ガイド専用のページ（ハッケンコウケン・カラー版✨）
+// 💡 使い方ガイド専用のページ
 app.get('/how-to-use', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -396,11 +384,8 @@ app.get('/how-to-use', (req, res) => {
           font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; 
           margin: 0; padding: 2rem; line-height: 1.6;
           background: linear-gradient(135deg, #005bac 0%, #009944 100%);
-          color: #222222;
-          position: relative;
-          overflow-x: hidden;
+          color: #222222; position: relative; overflow-x: hidden;
         }
-        
         .bg-shapes { 
           position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
           z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0;
@@ -429,8 +414,7 @@ app.get('/how-to-use', (req, res) => {
         .container { 
           max-width: 800px; margin: 0 auto; 
           background: rgba(255, 255, 255, 0.88); 
-          backdrop-filter: blur(12px); 
-          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
           padding: 2.5rem; border-radius: 20px; 
           box-shadow: 0 15px 35px rgba(0,0,0,0.15); 
           border-top: 6px solid #005bac; position: relative; z-index: 1; 
@@ -476,7 +460,7 @@ app.get('/how-to-use', (req, res) => {
         </ul>
 
         <h2>3. 神機能：出題ジャンルの増やし方</h2>
-        <p>管理画面の「➕ 新しいクイズを追加する」から、ジャンルの入力欄に<strong>「新しいジャンル名（アニメ、世界史など）」を直接手入力して登録するだけ</strong>で、自動的にDiscordのメニューにも追加されます！事前の設定は一切不要です。</p>
+        <p>管理画面の「➕ 新しいクイズを追加する」から、ジャンルの入力欄に<strong>「新しいジャンル名」を直接手入力して登録するだけ</strong>で、自動的にDiscordのメニューにも追加されます！</p>
       </div>
     </body>
     </html>
@@ -492,22 +476,46 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// クイズ追加
+// 🛠️ クイズ追加（【修正ポイント】GAS側の引数の位置にパラメータを正確に合わせました！）
 app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { genre, difficulty, question, answer, explanation } = req.body;
     const imageName = req.file ? req.file.filename : '';
-    await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'add', genre, difficulty, question, answer, explanation, image: imageName } });
+    
+    // GASのパラメータ順 (action, genre, difficulty, question, answer, explanation, image) に1対1で対応
+    await axios.get(process.env.GAS_WEB_APP_URL, { 
+      params: { 
+        action: 'add', 
+        genre: genre, 
+        difficulty: difficulty, 
+        question: question, 
+        answer: answer, 
+        explanation: explanation, 
+        image: imageName 
+      } 
+    });
     res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 登録が完了しました！</h1><p>まもなく戻ります...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-// クイズ編集
+// 🛠️ クイズ編集（【修正ポイント】こちらも完全に固定マッピングに修正）
 app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { id, genre, difficulty, question, answer, explanation, old_image } = req.body;
     const imageName = req.file ? req.file.filename : old_image;
-    await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'edit', id, genre, difficulty, question, answer, explanation, image: imageName } });
+    
+    await axios.get(process.env.GAS_WEB_APP_URL, { 
+      params: { 
+        action: 'edit', 
+        id: id,
+        genre: genre, 
+        difficulty: difficulty, 
+        question: question, 
+        answer: answer, 
+        explanation: explanation, 
+        image: imageName 
+      } 
+    });
     res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 上書き保存が完了しました！</h1><p>まもなく戻ります...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
