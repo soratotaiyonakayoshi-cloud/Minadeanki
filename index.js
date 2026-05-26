@@ -103,7 +103,8 @@ app.get('/', async (req, res) => {
               <input type="hidden" name="old_image" value="${quiz.image || ''}">
               
               <div class="form-row">
-                <div class="form-group"> <label>🏷️ ジャンル</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
+                <div class="form-group"> <label>🏷️ ジャンル（大区分）</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
+                <div class="form-group"> <label>📂 小区分（単元名）</label> <input type="text" name="sub_genre" class="form-control" value="${quiz.sub_genre || ''}" placeholder="例: αアミノ酸"> </div>
                 <div class="form-group"> <label>⭐ 難易度</label> <input type="number" name="difficulty" class="form-control" min="1" max="5" value="${quiz.difficulty || 1}" required> </div>
               </div>
               <div class="form-group"> <label>❓ 問題文</label> <textarea name="question" class="form-control" rows="3" required>${quiz.question || ''}</textarea> </div>
@@ -124,6 +125,7 @@ app.get('/', async (req, res) => {
               <input type="checkbox" class="quiz-select-checkbox" value="${quizId}" onchange="updateBulkDeleteButton()">
               <span class="id-badge"># ${quizId}</span>
               <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
+              ${quiz.sub_genre ? `<span class="sub-genre-badge">📂 ${quiz.sub_genre}</span>` : ''}
               <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
             </div>
             <h3>Q. ${quiz.question}</h3>
@@ -213,6 +215,18 @@ app.get('/', async (req, res) => {
           }
           .settings-accordion.open .accordion-content { display: block; }
           
+          /* CSV パネルのデザイン */
+          .csv-panel { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #005bac; padding: 1.5rem 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 1.5rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); }
+          .csv-panel h3 { margin-top: 0; font-size: 1.2rem; color: #005bac; display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
+          .csv-panel p { font-size: 0.85rem; color: #556677; margin-bottom: 1rem; margin-top: 0; }
+          .csv-flex { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+          .csv-form { flex: 1; min-width: 260px; display: flex; gap: 8px; margin: 0; }
+          .csv-input { flex: 1; padding: 6px; border: 2px dashed #cbd5e1; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 0.85rem; }
+          .csv-btn { background: #005bac; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+          .csv-btn:hover { background: #004480; }
+          .csv-dl-link { display: inline-block; text-decoration: none; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
+          .csv-dl-link:hover { background: #e2e8f0; color: #1e293b; }
+
           .form-container { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #009944; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 3rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
           .form-container h2 { margin-top: 0; font-size: 1.4rem; color: #009944; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.8rem; margin-bottom: 1.5rem; }
           .form-group { margin-bottom: 1.2rem; }
@@ -222,8 +236,8 @@ app.get('/', async (req, res) => {
           .form-row { display: flex; gap: 1rem; }
           .form-row .form-group { flex: 1; }
           
-          .submit-btn { width: 100%; padding: 1rem; background: #ff9900; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1rem; box-shadow: 0 4px 10px rgba(255, 153, 0, 0.3); }
-          .submit-btn:hover { background: #e08800; }
+          .submit-btn { width: 100%; padding: 1rem; background: #009944; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1rem; box-shadow: 0 4px 10px rgba(0, 153, 68, 0.2); }
+          .submit-btn:hover { background: #007a36; }
           .settings-save-btn { width: 100%; padding: 0.8rem; background: #005bac; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
           .settings-save-btn:hover { background: #004480; }
 
@@ -244,6 +258,7 @@ app.get('/', async (req, res) => {
           .editing-card { border: 2px solid #009944 !important; border-top: 6px solid #009944 !important; background: #f0fdf4 !important; }
           .id-badge { display: inline-block; background: #e2e8f0; color: #475569; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.8rem; font-weight: bold; margin-right: 0.5rem; }
           .genre-badge { display: inline-block; background: #005bac; color: white; padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; margin-right: 0.5rem; }
+          .sub-genre-badge { display: inline-block; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; margin-right: 0.5rem; }
           .diff-badge { display: inline-block; background: #ff9900; color: white; padding: 0.3rem 0.6rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; }
           .quiz-card h3 { margin: 0 0 1rem 0; font-size: 1.15rem; color: #1e293b; line-height: 1.5; }
           .answer { color: #009944; font-weight: bold; font-size: 1.1rem; }
@@ -297,11 +312,26 @@ app.get('/', async (req, res) => {
             </div>
           </div>
 
+          <div class="csv-panel">
+            <h3>📥 CSV一括操作 ＆ テンプレート</h3>
+            <p>ExcelやGoogleスプレッドシートで作成したCSVデータ（小区分対応）を一括追加、または現在の全データをバックアップとして書き出しできます。</p>
+            <div class="csv-flex">
+              <form action="/upload-csv" method="POST" enctype="multipart/form-data" class="csv-form">
+                <input type="file" name="csv_file" accept=".csv" required class="csv-input">
+                <button type="submit" class="csv-btn">🚀 一括登録</button>
+              </form>
+              <div>
+                <a href="/download-csv" class="csv-dl-link">📄 全データCSVをダウンロード</a>
+              </div>
+            </div>
+          </div>
+
           <div class="form-container">
             <h2>➕ 新しいクイズを追加する</h2>
             <form action="/add-quiz" method="POST" enctype="multipart/form-data">
               <div class="form-row">
-                <div class="form-group"> <label for="genre">🏷️ ジャンル</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 航空宇宙" required> </div>
+                <div class="form-group"> <label for="genre">🏷️ ジャンル（大区分）</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
+                <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸, 糖"> </div>
                 <div class="form-group"> <label for="difficulty">⭐ 難易度 (1〜5)</label> <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required> </div>
               </div>
               <div class="form-group"> <label for="question">❓ 問題文</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
@@ -476,17 +506,17 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ追加（【修正ポイント】GAS側の引数の位置にパラメータを正確に合わせました！）
+// 🛠️ クイズ追加（小区分 sub_genre パラメータを追加！）
 app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   try {
-    const { genre, difficulty, question, answer, explanation } = req.body;
+    const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
     const imageName = req.file ? req.file.filename : '';
     
-    // GASのパラメータ順 (action, genre, difficulty, question, answer, explanation, image) に1対1で対応
     await axios.get(process.env.GAS_WEB_APP_URL, { 
       params: { 
         action: 'add', 
         genre: genre, 
+        sub_genre: sub_genre || '',
         difficulty: difficulty, 
         question: question, 
         answer: answer, 
@@ -498,10 +528,10 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ編集（【修正ポイント】こちらも完全に固定マッピングに修正）
+// 🛠️ クイズ編集（小区分 sub_genre パラメータを追加！）
 app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
   try {
-    const { id, genre, difficulty, question, answer, explanation, old_image } = req.body;
+    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image } = req.body;
     const imageName = req.file ? req.file.filename : old_image;
     
     await axios.get(process.env.GAS_WEB_APP_URL, { 
@@ -509,6 +539,7 @@ app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
         action: 'edit', 
         id: id,
         genre: genre, 
+        sub_genre: sub_genre || '',
         difficulty: difficulty, 
         question: question, 
         answer: answer, 
@@ -528,10 +559,6 @@ app.post('/delete-quiz', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-app.listen(PORT, () => { console.log(`🌐 Webサーバーがポート ${PORT} で起動しました！`); });
-
-client.login(process.env.BOT_TOKEN);
-
 // ==========================================================
 // 📥 機能1：CSVファイルからクイズを一括登録する (Upload)
 // ==========================================================
@@ -541,41 +568,35 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
       return res.send('<h2>⚠️ ファイルがアップロードされていません。</h2><a href="/">戻る</a>');
     }
 
-    // アップロードされたCSVファイルを読み込む（文字コードはUTF-8前提）
     const csvData = fs.readFileSync(req.file.path, 'utf8');
-    
-    // csv-parseを使ってCSVを解析し、配列オブジェクトに変換
     const records = parse(csvData, {
-      columns: true,       // 1行目をヘッダー（キー）として扱う
-      skip_empty_lines: true, // 空行は無視
-      trim: true           //前後の余白を削除
+      columns: true,       
+      skip_empty_lines: true, 
+      trim: true           
     });
 
     console.log(`📦 CSVから ${records.length} 件のデータを検出しました。登録を開始します...`);
 
-    // 1件ずつGASのWebアプリへ送信して追加する
     for (const record of records) {
       await axios.get(process.env.GAS_WEB_APP_URL, {
         params: {
           action: 'add',
           genre: record.genre || '',
-          sub_genre: record.sub_genre || '', // 小区分（単元名）
+          sub_genre: record.sub_genre || '', 
           difficulty: record.difficulty || 1,
           question: record.question || '',
           answer: record.answer || '',
           explanation: record.explanation || '',
-          image: '' // 一括登録時は画像は一旦空にします
+          image: '' 
         }
       });
     }
 
-    // 処理が終わったらサーバー内の一時ファイルを削除
     fs.unlinkSync(req.file.path);
 
-    // 完了画面を表示して自動でダッシュボードに戻る
     res.send(`
-      <div style="background:#f4f7f6; color:#333; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
-        <h1 style="color:#2ecc71;">🎉 ${records.length}件のクイズを一括登録しました！</h1>
+      <div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+        <h1>🎉 ${records.length}件のクイズを一括登録しました！</h1>
         <p>まもなくダッシュボードに戻ります...</p>
         <script>setTimeout(() => { window.location.href = '/'; }, 2000);</script>
       </div>
@@ -588,32 +609,31 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
 });
 
 // ==========================================================
-// 📤 機能2：現在のクイズデータをCSVとして書き出す (Download)
+// 📤 機能2：現在のリアルなクイズデータをCSVとして書き出す (Download)
 // ==========================================================
 app.get('/download-csv', async (req, res) => {
   try {
-    // 現在の設定シート等を取得しているやり方と同様にGASから全データを取得
-    // ※もし既存のデータ取得アクション名が異なる場合は 'getQuizzes' など環境に合わせて変更してください
-    const response = await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'getSettings' } }); 
-    // 通常はクイズ一覧を取得するアクションが必要ですが、ここでは一般的な全データ取得の流れを想定しています。
-    // 仮に既存のダッシュボード表示用にGASからデータを引っ張るコードがある場合は、そのデータを流用します。
+    const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
+    const response = await axios.get(SPREADSHEET_CSV_URL, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } });
     
-    // 【補足】もしすでに動いている「クイズ一覧取得」のAPIがあればそれを使ってください。
-    // ここではデモとして、ダウンロード用のCSV文字列を組み立てて返却する構造を示します。
+    // スプレッドシートから取得した生データをパース
+    const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
     
-    // 今回は、ユーザーが手元で作成するCSVの「テンプレート（雛形）」としても使えるように、
-    // 正しいヘッダーを持ったCSVファイルをダウンロードさせる処理を記述します。
-    const headers = 'genre,sub_genre,difficulty,question,answer,explanation\n';
-    const sampleRow = '有機化学,αアミノ酸,3,タンパク質を構成するアミノ酸はどれ？,L型アミノ酸,天然のアミノ酸は基本的にL型です。';
+    // ユーザーがそのままアップロード用テンプレートとしても使える形式に再構成
+    let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation\n';
     
-    const csvContent = headers + sampleRow;
+    for (const q of allQuizData) {
+      // カンマや改行が含まれても壊れないようにエスケープ処理
+      const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+      csvContent += `${escape(q.genre)},${escape(q.sub_genre)},${q.difficulty || 1},${escape(q.question)},${escape(q.answer)},${escape(q.explanation)}\n`;
+    }
     
-    // Shift_JISだとExcelで文字化けしないですが、現代的なUTF-8（BOM付き）で出力します
+    // Excelで開いても絶対に文字化けしないように UTF-8 (BOM付き) で書き出し
     const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
     const buffer = Buffer.concat([bom, Buffer.from(csvContent, 'utf8')]);
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename=quiz_template.csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=tuat_quiz_backup.csv');
     res.send(buffer);
 
   } catch (error) {
@@ -621,3 +641,7 @@ app.get('/download-csv', async (req, res) => {
     res.status(500).send('CSVのダウンロードに失敗しました。');
   }
 });
+
+app.listen(PORT, () => { console.log(`🌐 Webサーバーがポート ${PORT} で起動しました！`); });
+
+client.login(process.env.BOT_TOKEN);
