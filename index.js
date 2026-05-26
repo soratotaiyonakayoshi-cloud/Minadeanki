@@ -571,7 +571,8 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
     const records = parse(csvData, {
       columns: true,       
       skip_empty_lines: true, 
-      trim: true           
+      trim: true,
+      bom: true
     });
 
     console.log(`📦 CSVから ${records.length} 件のデータを検出しました。登録を開始します...`);
