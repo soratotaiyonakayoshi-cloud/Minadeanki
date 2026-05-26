@@ -63,10 +63,18 @@ const storage = multer.diskStorage({
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, 'quiz-' + uniqueSuffix + ext); 
+    // 🌟 問題用か解説用かでファイル名の頭文字を分ける
+    const prefix = file.fieldname === 'exp_image_file' ? 'quiz-exp-' : 'quiz-';
+    cb(null, prefix + uniqueSuffix + ext); 
   }
 });
 const upload = multer({ storage: storage });
+
+// 🌟 問題画像と解説画像の2つのファイルを同時に受け取れるように設定
+const quizUploadFields = upload.fields([
+  { name: 'image_file', maxCount: 1 },
+  { name: 'exp_image_file', maxCount: 1 }
+]);
 
 app.get('/', async (req, res) => {
   try {
@@ -101,6 +109,7 @@ app.get('/', async (req, res) => {
             <form action="/edit-quiz" method="POST" enctype="multipart/form-data" style="margin-top: 1rem;">
               <input type="hidden" name="id" value="${quizId}">
               <input type="hidden" name="old_image" value="${quiz.image || ''}">
+              <input type="hidden" name="old_exp_image" value="${quiz.exp_image || ''}">
               
               <div class="form-row">
                 <div class="form-group"> <label>🏷️ ジャンル（大区分）</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
@@ -110,7 +119,12 @@ app.get('/', async (req, res) => {
               <div class="form-group"> <label>❓ 問題文</label> <textarea name="question" class="form-control" rows="3" required>${quiz.question || ''}</textarea> </div>
               <div class="form-group"> <label>✅ 正解</label> <input type="text" name="answer" class="form-control" value="${quiz.answer || ''}" required> </div>
               <div class="form-group"> <label>💡 解説（任意）</label> <textarea name="explanation" class="form-control" rows="2">${quiz.explanation || ''}</textarea> </div>
-              <div class="form-group"> <label>🖼️ 画像の変更</label> <input type="file" name="image_file" class="form-control" accept="image/*"> </div>
+              
+              <div class="form-row">
+                <div class="form-group"> <label>🖼️ 問題画像の変更</label> <input type="file" name="image_file" class="form-control" accept="image/*"> </div>
+                <div class="form-group"> <label>💡 解説画像の変更</label> <input type="file" name="exp_image_file" class="form-control" accept="image/*"> </div>
+              </div>
+
               <div style="display:flex; gap:0.5rem; margin-top:1rem;">
                 <button type="submit" class="save-btn">💾 上書き保存</button>
                 <a href="/" class="cancel-btn">キャンセル</a>
@@ -131,7 +145,11 @@ app.get('/', async (req, res) => {
             <h3>Q. ${quiz.question}</h3>
             <p><strong>A.</strong> <span class="answer">${quiz.answer}</span></p>
             ${quiz.explanation ? `<p class="explanation">💡 ${quiz.explanation}</p>` : ''}
-            ${quiz.image ? `<p class="has-image">🖼️ 画像あり: ${quiz.image}</p>` : ''}
+            
+            <div style="margin-top: 0.5rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px;">
+              ${quiz.image ? `<p class="has-image" style="margin:0;">🖼️ 問題画像: ${quiz.image}</p>` : ''}
+              ${quiz.exp_image ? `<p class="has-image" style="margin:0; color:#009944;">💡 解説画像: ${quiz.exp_image}</p>` : ''}
+            </div>
             
             <div class="card-actions">
               <a href="/?edit_id=${quizId}" class="edit-link-btn">✏️ 編集</a>
@@ -222,7 +240,6 @@ app.get('/', async (req, res) => {
           .csv-dl-link { text-align: center; display: block; text-decoration: none; background: #fff; color: #64748b; border: 1px dashed #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
           .csv-dl-link:hover { background: #f1f5f9; color: #1e293b; }
           
-          /* 🌟 めちゃくちゃ目立たせるメインの大ボタン */
           .csv-maker-link { 
             display: block; text-decoration: none; background: #009944; color: white; 
             padding: 1.2rem; border-radius: 10px; font-size: 1.2rem; font-weight: bold; 
@@ -288,7 +305,7 @@ app.get('/', async (req, res) => {
         <div class="container">
           <div class="header">
             <h1>🎓 みんなで暗記！</h1>
-            <p>のこ大Ⅹ部 専用ダッシュボード（全 ${allQuizData.length} 問）</p>
+            <p>東京農工大学 クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
             
             <div style="margin-top: 1rem;">
               <a href="/how-to-use" style="display: inline-block; background: #ff9900; color: white; text-decoration: none; padding: 0.6rem 1.5rem; border-radius: 9999px; font-weight: bold; box-shadow: 0 4px 10px rgba(255,153,0,0.3); transition: transform 0.2s;">
@@ -322,7 +339,7 @@ app.get('/', async (req, res) => {
             
             <div class="csv-flex">
               <a href="/csv-generator" class="csv-maker-link">
-                📝 問題セットをつくってみる！
+                📝 メンバー用：問題セットをつくってみる！
               </a>
 
               <form action="/upload-csv" method="POST" enctype="multipart/form-data" class="csv-form">
@@ -350,7 +367,12 @@ app.get('/', async (req, res) => {
               <div class="form-group"> <label for="question">❓ 問題文 *</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
               <div class="form-group"> <label for="answer">✅ 正解の答え *</label> <input type="text" id="answer" name="answer" class="form-control" placeholder="正解となる単語" required> </div>
               <div class="form-group"> <label for="explanation">💡 解説（任意）</label> <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
-              <div class="form-group"> <label for="image_file">🖼️ クイズ用の画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> </div>
+              
+              <div class="form-row">
+                <div class="form-group"> <label for="image_file">🖼️ クイズ用の問題画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> </div>
+                <div class="form-group"> <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label> <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*"> </div>
+              </div>
+
               <button type="submit" class="submit-btn">✨ 登録する</button>
             </form>
           </div>
@@ -413,7 +435,7 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 📖 使い方ガイド専用のページ
+// 📖 使い方ガイド
 app.get('/how-to-use', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -502,7 +524,7 @@ app.get('/how-to-use', (req, res) => {
           <li><strong>🎲 ベッティング:</strong> 所持ポイントを賭ける変則ルール。自信のある問題で一発逆転！</li>
         </ul>
 
-        <h2>3. 出題ジャンルの増やし方</h2>
+        <h2>3. 神機能：出題ジャンルの増やし方</h2>
         <p>管理画面の「➕ 新しいクイズを追加する」から、ジャンルの入力欄に<strong>「新しいジャンル名」を直接手入力して登録するだけ</strong>で、自動的にDiscordのメニューにも追加されます！</p>
       </div>
     </body>
@@ -510,7 +532,7 @@ app.get('/how-to-use', (req, res) => {
   `);
 });
 
-// 💻 🌟 かんたん問題セットメーカー（旧：CSVジェネレーター）画面
+// 💻 かんたん問題セットメーカー（旧：CSVジェネレーター）画面
 app.get('/csv-generator', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -569,30 +591,12 @@ app.get('/csv-generator', (req, res) => {
         
         <div class="maker-layout">
           <div class="form-box">
-            <div class="form-group">
-              <label>🏷️ ジャンル（大区分） *</label>
-              <input type="text" id="g_genre" class="form-control" placeholder="例: 有機化学, アニメ" required>
-            </div>
-            <div class="form-group">
-              <label>📂 小区分（単元名など）</label>
-              <input type="text" id="g_sub" class="form-control" placeholder="例: αアミノ酸">
-            </div>
-            <div class="form-group">
-              <label>⭐ 難易度 (1〜5)</label>
-              <input type="number" id="g_diff" class="form-control" min="1" max="5" value="1">
-            </div>
-            <div class="form-group">
-              <label>❓ 問題文 *</label>
-              <textarea id="g_question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea>
-            </div>
-            <div class="form-group">
-              <label>✅ 正解の答え *</label>
-              <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required>
-            </div>
-            <div class="form-group">
-              <label>💡 解説（任意）</label>
-              <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea>
-            </div>
+            <div class="form-group"> <label>🏷️ ジャンル（大区分） *</label> <input type="text" id="g_genre" class="form-control" placeholder="例: 有機化学, アニメ" required> </div>
+            <div class="form-group"> <label>📂 小区分（単元名など）</label> <input type="text" id="g_sub" class="form-control" placeholder="例: αアミノ酸"> </div>
+            <div class="form-group"> <label>⭐ 難易度 (1〜5)</label> <input type="number" id="g_diff" class="form-control" min="1" max="5" value="1"> </div>
+            <div class="form-group"> <label>❓ 問題文 *</label> <textarea id="g_question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
+            <div class="form-group"> <label>✅ 正解の答え *</label> <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required> </div>
+            <div class="form-group"> <label>💡 解説（任意）</label> <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
             <button type="button" class="add-list-btn" onclick="addQuizToList()">➕ 下書きリストに追加</button>
           </div>
           
@@ -679,11 +683,12 @@ app.get('/csv-generator', (req, res) => {
             return;
           }
 
-          let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation\\n';
+          // 🌟 インポート時の列ズレを防ぐためヘッダーに image, exp_image を完備
+          let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation,image,exp_image\\n';
           
           quizList.forEach(q => {
             const escape = (str) => \`"\${(str || '').replace(/"/g, '""')}"\`;
-            csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)}\\n\`;
+            csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)},"",""\\n\`;
           });
 
           const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
@@ -713,11 +718,14 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ追加
-app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
+// 🛠️ クイズ追加 (🌟 複数ファイルアップロード対応に更新)
+app.post('/add-quiz', quizUploadFields, async (req, res) => {
   try {
     const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
-    const imageName = req.file ? req.file.filename : '';
+    
+    // 各ファイル名を取得
+    const imageName = req.files && req.files['image_file'] ? req.files['image_file'][0].filename : '';
+    const expImageName = req.files && req.files['exp_image_file'] ? req.files['exp_image_file'][0].filename : '';
     
     await axios.get(process.env.GAS_WEB_APP_URL, { 
       params: { 
@@ -728,18 +736,22 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
         question: question, 
         answer: answer, 
         explanation: explanation, 
-        image: imageName 
+        image: imageName,
+        exp_image: expImageName // 🌟 GASへ送信
       } 
     });
     res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 登録が完了しました！</h1><p>まもなく戻ります...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
+  } catch (error) { console.error(error); res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ編集
-app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
+// 🛠️ クイズ編集 (🌟 複数ファイルアップロード対応に更新)
+app.post('/edit-quiz', quizUploadFields, async (req, res) => {
   try {
-    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image } = req.body;
-    const imageName = req.file ? req.file.filename : old_image;
+    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image } = req.body;
+    
+    // 新しいファイルがなければ既存のものを引き継ぐ
+    const imageName = req.files && req.files['image_file'] ? req.files['image_file'][0].filename : old_image;
+    const expImageName = req.files && req.files['exp_image_file'] ? req.files['exp_image_file'][0].filename : old_exp_image;
     
     await axios.get(process.env.GAS_WEB_APP_URL, { 
       params: { 
@@ -751,11 +763,12 @@ app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
         question: question, 
         answer: answer, 
         explanation: explanation, 
-        image: imageName 
+        image: imageName,
+        exp_image: expImageName // 🌟 GASへ送信
       } 
     });
     res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 上書き保存が完了しました！</h1><p>まもなく戻ります...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
+  } catch (error) { console.error(error); res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
 // クイズ削除
@@ -767,7 +780,7 @@ app.post('/delete-quiz', async (req, res) => {
 });
 
 // ==========================================================
-// 📥 ファイルからクイズを一括登録する
+// 📥 ファイルからクイズを一括登録する (🌟 exp_image 列に対応)
 // ==========================================================
 app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
   try {
@@ -783,7 +796,7 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
       bom: true 
     });
 
-    console.log(`📦 ファイルから ${records.length} 件のデータを検出しました。登録を開始します...`);
+    console.log(`📦 ファイルから ${records.length} 件 of データを検出しました。登録を開始します...`);
 
     for (const record of records) {
       await axios.get(process.env.GAS_WEB_APP_URL, {
@@ -795,7 +808,8 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
           question: record.question || '',
           answer: record.answer || '',
           explanation: record.explanation || '',
-          image: '' 
+          image: record.image || '',       // 🌟 ファイル内指定があれば引き継ぐ
+          exp_image: record.exp_image || '' // 🌟 解説画像も一括対応
         }
       });
     }
@@ -817,7 +831,7 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
 });
 
 // ==========================================================
-// 📤 ダウンロード
+// 📤 ダウンロード (🌟 exp_image 列のエクスポートに対応)
 // ==========================================================
 app.get('/download-csv', async (req, res) => {
   try {
@@ -825,11 +839,12 @@ app.get('/download-csv', async (req, res) => {
     const response = await axios.get(SPREADSHEET_CSV_URL, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } });
     const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
     
-    let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation\n';
+    // ヘッダーに exp_image をバッチリ追加
+    let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation,image,exp_image\n';
     
     for (const q of allQuizData) {
       const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-      csvContent += `${escape(q.genre)},${escape(q.sub_genre)},${q.difficulty || 1},${escape(q.question)},${escape(q.answer)},${escape(q.explanation)}\n`;
+      csvContent += `${escape(q.genre)},${escape(q.sub_genre)},${q.difficulty || 1},${escape(q.question)},${escape(q.answer)},${escape(q.explanation)},${escape(q.image)},${escape(q.exp_image)}\n`;
     }
     
     const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
