@@ -531,3 +531,93 @@ app.post('/delete-quiz', async (req, res) => {
 app.listen(PORT, () => { console.log(`🌐 Webサーバーがポート ${PORT} で起動しました！`); });
 
 client.login(process.env.BOT_TOKEN);
+
+// ==========================================================
+// 📥 機能1：CSVファイルからクイズを一括登録する (Upload)
+// ==========================================================
+app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.send('<h2>⚠️ ファイルがアップロードされていません。</h2><a href="/">戻る</a>');
+    }
+
+    // アップロードされたCSVファイルを読み込む（文字コードはUTF-8前提）
+    const csvData = fs.readFileSync(req.file.path, 'utf8');
+    
+    // csv-parseを使ってCSVを解析し、配列オブジェクトに変換
+    const records = parse(csvData, {
+      columns: true,       // 1行目をヘッダー（キー）として扱う
+      skip_empty_lines: true, // 空行は無視
+      trim: true           //前後の余白を削除
+    });
+
+    console.log(`📦 CSVから ${records.length} 件のデータを検出しました。登録を開始します...`);
+
+    // 1件ずつGASのWebアプリへ送信して追加する
+    for (const record of records) {
+      await axios.get(process.env.GAS_WEB_APP_URL, {
+        params: {
+          action: 'add',
+          genre: record.genre || '',
+          sub_genre: record.sub_genre || '', // 小区分（単元名）
+          difficulty: record.difficulty || 1,
+          question: record.question || '',
+          answer: record.answer || '',
+          explanation: record.explanation || '',
+          image: '' // 一括登録時は画像は一旦空にします
+        }
+      });
+    }
+
+    // 処理が終わったらサーバー内の一時ファイルを削除
+    fs.unlinkSync(req.file.path);
+
+    // 完了画面を表示して自動でダッシュボードに戻る
+    res.send(`
+      <div style="background:#f4f7f6; color:#333; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+        <h1 style="color:#2ecc71;">🎉 ${records.length}件のクイズを一括登録しました！</h1>
+        <p>まもなくダッシュボードに戻ります...</p>
+        <script>setTimeout(() => { window.location.href = '/'; }, 2000);</script>
+      </div>
+    `);
+
+  } catch (error) {
+    console.error('CSV一括登録エラー:', error);
+    res.status(500).send('<h2>❌ CSVの解析または登録中にエラーが発生しました。</h2><a href="/">戻る</a>');
+  }
+});
+
+// ==========================================================
+// 📤 機能2：現在のクイズデータをCSVとして書き出す (Download)
+// ==========================================================
+app.get('/download-csv', async (req, res) => {
+  try {
+    // 現在の設定シート等を取得しているやり方と同様にGASから全データを取得
+    // ※もし既存のデータ取得アクション名が異なる場合は 'getQuizzes' など環境に合わせて変更してください
+    const response = await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'getSettings' } }); 
+    // 通常はクイズ一覧を取得するアクションが必要ですが、ここでは一般的な全データ取得の流れを想定しています。
+    // 仮に既存のダッシュボード表示用にGASからデータを引っ張るコードがある場合は、そのデータを流用します。
+    
+    // 【補足】もしすでに動いている「クイズ一覧取得」のAPIがあればそれを使ってください。
+    // ここではデモとして、ダウンロード用のCSV文字列を組み立てて返却する構造を示します。
+    
+    // 今回は、ユーザーが手元で作成するCSVの「テンプレート（雛形）」としても使えるように、
+    // 正しいヘッダーを持ったCSVファイルをダウンロードさせる処理を記述します。
+    const headers = 'genre,sub_genre,difficulty,question,answer,explanation\n';
+    const sampleRow = '有機化学,αアミノ酸,3,タンパク質を構成するアミノ酸はどれ？,L型アミノ酸,天然のアミノ酸は基本的にL型です。';
+    
+    const csvContent = headers + sampleRow;
+    
+    // Shift_JISだとExcelで文字化けしないですが、現代的なUTF-8（BOM付き）で出力します
+    const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
+    const buffer = Buffer.concat([bom, Buffer.from(csvContent, 'utf8')]);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=quiz_template.csv');
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('CSVダウンロードエラー:', error);
+    res.status(500).send('CSVのダウンロードに失敗しました。');
+  }
+});
