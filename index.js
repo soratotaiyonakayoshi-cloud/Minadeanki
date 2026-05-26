@@ -562,8 +562,10 @@ app.get('/csv-generator', (req, res) => {
         .form-group label { display: block; margin-bottom: 0.4rem; font-weight: bold; font-size: 0.9rem; color: #3b4a5a; }
         .form-control { width: 100%; padding: 0.6rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
         .form-control:focus { outline: none; border-color: #009944; background: #fff; }
+        .form-row { display: flex; gap: 0.5rem; }
+        .form-row .form-group { flex: 1; margin-bottom: 0; }
         
-        .add-list-btn { width: 100%; padding: 0.8rem; background: #009944; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .add-list-btn { width: 100%; padding: 0.8rem; background: #009944; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin-top: 1rem; }
         .add-list-btn:hover { background: #007a36; }
         
         .list-box { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 5px solid #005bac; display: flex; flex-direction: column; }
@@ -573,12 +575,13 @@ app.get('/csv-generator', (req, res) => {
         .download-btn { background: #ff9900; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; box-shadow: 0 4px 8px rgba(255,153,0,0.25); }
         .download-btn:hover { background: #e08800; }
         
-        .preview-scroll { max-height: 450px; overflow-y: auto; padding-right: 5px; }
+        .preview-scroll { max-height: 500px; overflow-y: auto; padding-right: 5px; }
         .draft-item { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #005bac; padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 0 6px 6px 0; position: relative; }
         .draft-tags { font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 0.3rem; }
         .draft-tags span { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
         .draft-q { font-weight: bold; margin: 0; font-size: 0.95rem; color: #1e293b; padding-right: 2rem; }
         .draft-a { margin: 3px 0 0 0; font-size: 0.85rem; color: #009944; font-weight: bold; }
+        .draft-images { font-size: 0.8rem; margin: 4px 0 0 0; color: #005bac; display: flex; flex-direction: column; gap: 1px; }
         .remove-draft-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #e11d48; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
         .empty-text { color: #94a3b8; text-align: center; padding: 3rem 0; font-style: italic; }
       </style>
@@ -597,6 +600,12 @@ app.get('/csv-generator', (req, res) => {
             <div class="form-group"> <label>❓ 問題文 *</label> <textarea id="g_question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
             <div class="form-group"> <label>✅ 正解の答え *</label> <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required> </div>
             <div class="form-group"> <label>💡 解説（任意）</label> <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
+            
+            <div class="form-row" style="margin-top: 0.5rem;">
+              <div class="form-group"> <label>🖼️ 問題画像名 (任意)</label> <input type="text" id="g_img" class="form-control" placeholder="例: q1.png"> </div>
+              <div class="form-group"> <label>💡 解説画像名 (任意)</label> <input type="text" id="g_exp_img" class="form-control" placeholder="例: exp1.png"> </div>
+            </div>
+
             <button type="button" class="add-list-btn" onclick="addQuizToList()">➕ 下書きリストに追加</button>
           </div>
           
@@ -623,18 +632,23 @@ app.get('/csv-generator', (req, res) => {
           const question = document.getElementById('g_question').value.trim();
           const answer = document.getElementById('g_answer').value.trim();
           const explanation = document.getElementById('g_exp').value.trim();
+          const image = document.getElementById('g_img').value.trim();        // 🌟 取得
+          const exp_image = document.getElementById('g_exp_img').value.trim(); // 🌟 取得
 
           if (!genre || !question || !answer) {
             alert('「ジャンル」「問題文」「正解の答え」は必須入力です！');
             return;
           }
 
-          const newQuiz = { genre, sub_genre, difficulty, question, answer, explanation };
+          const newQuiz = { genre, sub_genre, difficulty, question, answer, explanation, image, exp_image };
           quizList.push(newQuiz);
 
+          // 入力欄をクリア (次の入力が楽なように、ジャンルや難易度はあえて残します)
           document.getElementById('g_question').value = '';
           document.getElementById('g_answer').value = '';
           document.getElementById('g_exp').value = '';
+          document.getElementById('g_img').value = '';
+          document.getElementById('g_exp_img').value = '';
 
           updatePreview();
         }
@@ -665,6 +679,12 @@ app.get('/csv-generator', (req, res) => {
                 </div>
                 <p class="draft-q">Q. \${escapeHtml(q.question)}</p>
                 <p class="draft-a">A. \${escapeHtml(q.answer)}</p>
+                
+                <div class="draft-images">
+                  \${q.image ? \`<span>🖼️ 問題画像: \${escapeHtml(q.image)}</span>\` : ''}
+                  \${q.exp_image ? \`<span style="color:#009944;">💡 解説画像: \${escapeHtml(q.exp_image)}</span>\` : ''}
+                </div>
+
                 <button type="button" class="remove-draft-btn" onclick="removeQuiz(\${idx})">×</button>
               </div>
             \`;
@@ -683,12 +703,12 @@ app.get('/csv-generator', (req, res) => {
             return;
           }
 
-          // 🌟 インポート時の列ズレを防ぐためヘッダーに image, exp_image を完備
+          // 🌟 エクスポートデータのヘッダーに image, exp_image を完全完備！
           let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation,image,exp_image\\n';
           
           quizList.forEach(q => {
             const escape = (str) => \`"\${(str || '').replace(/"/g, '""')}"\`;
-            csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)},"",""\\n\`;
+            csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)},\${escape(q.image)},\${escape(q.exp_image)}\\n\`;
           });
 
           const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
