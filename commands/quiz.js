@@ -1,13 +1,14 @@
-const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const path = require('node:path');
+const fs = require('node:fs');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 const { OpenAI } = require('openai');
 
-// 🌐 設定エリア（環境変数から安全に読み込む形に変更！）
+// 🌐 設定エリア
 const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
 const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
-// 💡 ここ！ process.env.OPENAI_API_KEY から直接読み込むようにします
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function getQuizDataFromSheets() {
@@ -94,12 +95,9 @@ module.exports = {
     const allChoices = [quiz.answer, ...decoys];
     const shuffledChoices = shuffleArray([...allChoices]);
 
-    // 🌟 正解の選択肢が「シャッフル後の配列の何番目（インデックス）にあるか」を突き止める
     const correctIndex = shuffledChoices.indexOf(quiz.answer);
 
-    // 4つのボタンを生成
     const buttons = shuffledChoices.map((choice, index) => {
-      // 🔒 カスタムIDには「クイズID」「正解の番号」「自分が何番目か」の【数字だけ】を仕込む！（超安全）
       return new ButtonBuilder()
         .setCustomId(`panelAnswer_${quiz.id}_${correctIndex}_${index}`) 
         .setLabel(String(choice).slice(0, 80))
@@ -108,21 +106,38 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(buttons);
     
+    // 🌟 EmbedBuilder（リッチなカード形式）に変更
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 4択クイズ！正解のボタンを押してね！')
+      .setDescription(`📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}`)
+      .setColor('#005bac');
+
     const messageOptions = { 
-      content: `🎯 **4択クイズ！正解のボタンを押してね！**\n\n📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}`, 
+      embeds: [embed],
       components: [row],
       files: [] 
     };
     
     if (quiz.image) {
-    // 1. 画像のURLを安全に暗号化（エンコード）する
-    const encodedUrl = encodeURIComponent(quiz.image);
-    // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
-    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-    
-    // 3. 変換したURLを使って、メッセージに添付する
-    messageOptions.files = [new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' })];
-}
+      const safeImageName = 'quiz_image.png';
+      
+      if (quiz.image.startsWith('http')) {
+        // 古い形式（URL）の画像
+        const encodedUrl = encodeURIComponent(quiz.image);
+        const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+        messageOptions.files = [new AttachmentBuilder(proxyImageUrl, { name: safeImageName })];
+        embed.setImage(`attachment://${safeImageName}`);
+      } else {
+        // 🌟 新しい形式（ローカルの images フォルダ）の画像
+        const imagePath = path.join(__dirname, '..', 'images', quiz.image);
+        if (fs.existsSync(imagePath)) {
+          messageOptions.files = [new AttachmentBuilder(imagePath, { name: safeImageName })];
+          embed.setImage(`attachment://${safeImageName}`); // 🌟 これで画像がドカンと表示されます！
+        } else {
+          console.log(`⚠️ 画像が見つかりません: ${imagePath}`);
+        }
+      }
+    }
     
     const isThread = interaction.channel.isThread();
 
