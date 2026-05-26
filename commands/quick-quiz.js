@@ -1,10 +1,12 @@
-const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const path = require('node:path');
+const fs = require('node:fs');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 
 // 🌐 設定エリア
 const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
-const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL; // 👈 これが漏れていないかチェック！
+const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
 async function getQuizDataFromSheets() {
   try {
@@ -46,16 +48,34 @@ module.exports = {
       .setStyle(ButtonStyle.Danger);
 
     const row = new ActionRowBuilder().addComponents(button);
-    const messageOptions = { content: `🎯 **${interaction.user} さんの早押しクイズが始まりました！**\n\n📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}`, components: [row], files: [] };
-    if (quiz.image) {
-    // 1. 画像のURLを安全に暗号化（エンコード）する
-    const encodedUrl = encodeURIComponent(quiz.image);
-    // 2. GASウェブアプリのURLとドッキングさせて、変換後のURLを作る
-    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
     
-    // 3. 変換したURLを使って、メッセージに添付する
-    messageOptions.files = [new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' })];
-}
+    // 🌟 EmbedBuilderに変更
+    const embed = new EmbedBuilder()
+      .setTitle(`🎯 ${interaction.user.displayName} さんの早押しクイズ！`)
+      .setDescription(`📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}`)
+      .setColor('#e11d48');
+
+    const messageOptions = { embeds: [embed], components: [row], files: [] };
+    
+    if (quiz.image) {
+      const safeImageName = 'quiz_image.png';
+      
+      if (quiz.image.startsWith('http')) {
+        const encodedUrl = encodeURIComponent(quiz.image);
+        const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+        messageOptions.files = [new AttachmentBuilder(proxyImageUrl, { name: safeImageName })];
+        embed.setImage(`attachment://${safeImageName}`);
+      } else {
+        // 🌟 新しい形式（ローカルの images フォルダ）の画像
+        const imagePath = path.join(__dirname, '..', 'images', quiz.image);
+        if (fs.existsSync(imagePath)) {
+          messageOptions.files = [new AttachmentBuilder(imagePath, { name: safeImageName })];
+          embed.setImage(`attachment://${safeImageName}`);
+        } else {
+          console.log(`⚠️ 画像が見つかりません: ${imagePath}`);
+        }
+      }
+    }
     
     await thread.send(messageOptions);
     await interaction.editReply({ content: `✅ 専用部屋を作成しました！こちらから参加してください ➜ ${thread}` });
