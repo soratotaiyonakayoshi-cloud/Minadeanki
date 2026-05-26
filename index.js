@@ -532,7 +532,35 @@ app.get('/how-to-use', (req, res) => {
   `);
 });
 
-// 💻 かんたん問題セットメーカー（旧：CSVジェネレーター）画面
+// ==========================================================
+// 🖼️ CSVジェネレーター用：画像だけを先行アップロードするAPI
+// ==========================================================
+app.post('/api/upload-image-single', quizUploadFields, (req, res) => {
+  try {
+    let uploadedFilename = '';
+    
+    // 問題画像が送られてきた場合
+    if (req.files && req.files['image_file']) {
+      uploadedFilename = req.files['image_file'][0].filename;
+    }
+    // 解説画像が送られてきた場合
+    if (req.files && req.files['exp_image_file']) {
+      uploadedFilename = req.files['exp_image_file'][0].filename;
+    }
+
+    if (!uploadedFilename) {
+      return res.status(400).json({ error: '画像ファイルが見つかりません' });
+    }
+
+    // 保存された実際のファイル名をフロント（画面）に返す
+    res.json({ filename: uploadedFilename });
+  } catch (error) {
+    console.error('先行アップロードエラー:', error);
+    res.status(500).json({ error: 'サーバー側で画像保存に失敗しました' });
+  }
+});
+
+// 💻 かんたん問題セットメーカー（画像先行アップロード対応版）
 app.get('/csv-generator', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -565,6 +593,11 @@ app.get('/csv-generator', (req, res) => {
         .form-row { display: flex; gap: 0.5rem; }
         .form-row .form-group { flex: 1; margin-bottom: 0; }
         
+        /* 🌟 画像アップロード中の演出用スタイル */
+        .img-status { font-size: 0.75rem; margin-top: 3px; font-weight: bold; color: #64748b; }
+        .img-status.success { color: #009944; }
+        .img-status.loading { color: #005bac; }
+        
         .add-list-btn { width: 100%; padding: 0.8rem; background: #009944; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin-top: 1rem; }
         .add-list-btn:hover { background: #007a36; }
         
@@ -590,7 +623,10 @@ app.get('/csv-generator', (req, res) => {
       <div class="container">
         <a href="/" class="back-btn">← 管理画面に戻る</a>
         <h1>📝 かんたん問題セットメーカー</h1>
-        <p class="desc">難しいソフトを使わなくても、フォームを埋めるだけで新しいクイズのセットをまとめて安全に作成できます。<br>ここで入力したクイズは、あなたのパソコンの中に一時的に保存されるだけなので、何回間違えても本番データが壊れる心配はありません！<br>作り終わったら、右側の黄色いボタンからファイルを保存して、管理者に「これ追加して！」と渡してくださいね。</p>
+        <p class="desc">
+          フォームを埋めるだけで新しいクイズのセットをまとめて安全に作成できます。<br>
+          <strong>🌟 画像付き問題にも完全対応！</strong> 画像を選択すると、自動的にサーバーへ先行アップロードされ、CSVファイルにファイル名が記録されます。作り終わったら右側の黄色いボタンからCSVファイルを保存して、管理画面からアップロードしてください！
+        </p>
         
         <div class="maker-layout">
           <div class="form-box">
@@ -601,9 +637,19 @@ app.get('/csv-generator', (req, res) => {
             <div class="form-group"> <label>✅ 正解の答え *</label> <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required> </div>
             <div class="form-group"> <label>💡 解説（任意）</label> <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
             
-            <div class="form-row" style="margin-top: 0.5rem;">
-              <div class="form-group"> <label>🖼️ 問題画像名 (任意)</label> <input type="text" id="g_img" class="form-control" placeholder="例: q1.png"> </div>
-              <div class="form-group"> <label>💡 解説画像名 (任意)</label> <input type="text" id="g_exp_img" class="form-control" placeholder="例: exp1.png"> </div>
+            <input type="hidden" id="g_img_filename" value="">
+            <input type="hidden" id="g_exp_img_filename" value="">
+
+            <div class="form-group">
+              <label>🖼️ クイズ用の問題画像 (任意)</label>
+              <input type="file" id="g_img_file" class="form-control" accept="image/*" onchange="uploadImageAsync('image_file')">
+              <div id="g_img_status" class="img-status">未選択</div>
+            </div>
+            
+            <div class="form-group">
+              <label>💡 正解発表・解説時の画像 (任意)</label>
+              <input type="file" id="g_exp_img_file" class="form-control" accept="image/*" onchange="uploadImageAsync('exp_image_file')">
+              <div id="g_exp_img_status" class="img-status">未選択</div>
             </div>
 
             <button type="button" class="add-list-btn" onclick="addQuizToList()">➕ 下書きリストに追加</button>
@@ -625,6 +671,46 @@ app.get('/csv-generator', (req, res) => {
       <script>
         let quizList = [];
 
+        // 🌟 画像を選んだ瞬間に裏側でサーバーへアップロードする魔法の関数
+        async function uploadImageAsync(fieldName) {
+          const fileInput = fieldName === 'image_file' ? document.getElementById('g_img_file') : document.getElementById('g_exp_img_file');
+          const statusDiv = fieldName === 'image_file' ? document.getElementById('g_img_status') : document.getElementById('g_exp_img_status');
+          const hiddenInput = fieldName === 'image_file' ? document.getElementById('g_img_filename') : document.getElementById('g_exp_img_filename');
+
+          if (!fileInput.files || fileInput.files.length === 0) return;
+
+          statusDiv.className = 'img-status loading';
+          statusDiv.textContent = '⏳ サーバーへアップロード中...';
+
+          const formData = new FormData();
+          formData.append(fieldName, fileInput.files[0]);
+
+          try {
+            const response = await fetch('/api/upload-image-single', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await response.json();
+
+            if (response.ok && data.filename) {
+              hiddenInput.value = data.filename; // 隠し欄に生成されたファイル名を保存
+              statusDiv.className = 'img-status success';
+              statusDiv.textContent = '✅ アップロード完了！(' + data.filename + ')';
+            } else {
+              alert('アップロードに失敗しました: ' + (data.error || '不明なエラー'));
+              statusDiv.className = 'img-status';
+              statusDiv.textContent = '❌ 失敗しました';
+              fileInput.value = '';
+            }
+          } catch (error) {
+            console.error(error);
+            alert('通信エラーが発生しました。');
+            statusDiv.className = 'img-status';
+            statusDiv.textContent = '❌ 通信エラー';
+            fileInput.value = '';
+          }
+        }
+
         function addQuizToList() {
           const genre = document.getElementById('g_genre').value.trim();
           const sub_genre = document.getElementById('g_sub').value.trim();
@@ -632,8 +718,8 @@ app.get('/csv-generator', (req, res) => {
           const question = document.getElementById('g_question').value.trim();
           const answer = document.getElementById('g_answer').value.trim();
           const explanation = document.getElementById('g_exp').value.trim();
-          const image = document.getElementById('g_img').value.trim();        // 🌟 取得
-          const exp_image = document.getElementById('g_exp_img').value.trim(); // 🌟 取得
+          const image = document.getElementById('g_img_filename').value;        // 🌟 隠し欄から取得
+          const exp_image = document.getElementById('g_exp_img_filename').value; // 🌟 隠し欄から取得
 
           if (!genre || !question || !answer) {
             alert('「ジャンル」「問題文」「正解の答え」は必須入力です！');
@@ -643,12 +729,20 @@ app.get('/csv-generator', (req, res) => {
           const newQuiz = { genre, sub_genre, difficulty, question, answer, explanation, image, exp_image };
           quizList.push(newQuiz);
 
-          // 入力欄をクリア (次の入力が楽なように、ジャンルや難易度はあえて残します)
+          // 入力欄をリセット
           document.getElementById('g_question').value = '';
           document.getElementById('g_answer').value = '';
           document.getElementById('g_exp').value = '';
-          document.getElementById('g_img').value = '';
-          document.getElementById('g_exp_img').value = '';
+          
+          document.getElementById('g_img_file').value = '';
+          document.getElementById('g_exp_img_file').value = '';
+          document.getElementById('g_img_filename').value = '';
+          document.getElementById('g_exp_img_filename').value = '';
+          
+          document.getElementById('g_img_status').className = 'img-status';
+          document.getElementById('g_img_status').textContent = '未選択';
+          document.getElementById('g_exp_img_status').className = 'img-status';
+          document.getElementById('g_exp_img_status').textContent = '未選択';
 
           updatePreview();
         }
@@ -703,7 +797,6 @@ app.get('/csv-generator', (req, res) => {
             return;
           }
 
-          // 🌟 エクスポートデータのヘッダーに image, exp_image を完全完備！
           let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation,image,exp_image\\n';
           
           quizList.forEach(q => {
