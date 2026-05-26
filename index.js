@@ -157,10 +157,7 @@ app.get('/', async (req, res) => {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Segoe UI', sans-serif; 
             margin: 0; padding: 2rem; line-height: 1.6;
             background: linear-gradient(135deg, #005bac 0%, #009944 100%);
-            color: #222222;
-            position: relative;
-            overflow-x: hidden;
-            min-height: 100vh;
+            color: #222222; position: relative; overflow-x: hidden; min-height: 100vh;
           }
           .bg-shapes { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -192,8 +189,7 @@ app.get('/', async (req, res) => {
             background: rgba(255, 255, 255, 0.88); 
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             padding: 2.5rem; border-radius: 20px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15); 
-            position: relative; z-index: 1; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15); position: relative; z-index: 1; 
           }
           
           .header { text-align: center; margin-bottom: 2rem; }
@@ -215,18 +211,25 @@ app.get('/', async (req, res) => {
           }
           .settings-accordion.open .accordion-content { display: block; }
           
-          .csv-panel { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #005bac; padding: 1.5rem 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 1.5rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); }
-          .csv-panel h3 { margin-top: 0; font-size: 1.2rem; color: #005bac; display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
-          .csv-panel p { font-size: 0.85rem; color: #556677; margin-bottom: 1rem; margin-top: 0; }
-          .csv-flex { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
-          .csv-form { flex: 1; min-width: 260px; display: flex; gap: 8px; margin: 0; }
-          .csv-input { flex: 1; padding: 6px; border: 2px dashed #cbd5e1; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 0.85rem; }
-          .csv-btn { background: #005bac; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+          .csv-panel { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #005bac; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 1.5rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); }
+          .csv-panel h3 { margin-top: 0; font-size: 1.3rem; color: #005bac; display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
+          .csv-panel p { font-size: 0.9rem; color: #556677; margin-bottom: 1.5rem; margin-top: 0; }
+          .csv-flex { display: flex; flex-direction: column; gap: 15px; }
+          .csv-form { display: flex; flex-direction: column; gap: 6px; margin: 0; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1; }
+          .csv-input { padding: 6px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+          .csv-btn { background: #005bac; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
           .csv-btn:hover { background: #004480; }
-          .csv-dl-link { display: inline-block; text-decoration: none; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
-          .csv-dl-link:hover { background: #e2e8f0; color: #1e293b; }
-          .csv-maker-link { display: inline-block; text-decoration: none; background: #009944; color: white; border: 1px solid #007a36; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
-          .csv-maker-link:hover { background: #007a36; }
+          .csv-dl-link { text-align: center; display: block; text-decoration: none; background: #fff; color: #64748b; border: 1px dashed #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
+          .csv-dl-link:hover { background: #f1f5f9; color: #1e293b; }
+          
+          /* 🌟 めちゃくちゃ目立たせるメインの大ボタン */
+          .csv-maker-link { 
+            display: block; text-decoration: none; background: #009944; color: white; 
+            padding: 1.2rem; border-radius: 10px; font-size: 1.2rem; font-weight: bold; 
+            text-align: center; box-shadow: 0 6px 20px rgba(0, 153, 68, 0.3); 
+            transition: all 0.2s; border: none;
+          }
+          .csv-maker-link:hover { background: #007a36; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 153, 68, 0.4); }
 
           .form-container { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #009944; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 3rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
           .form-container h2 { margin-top: 0; font-size: 1.4rem; color: #009944; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.8rem; margin-bottom: 1.5rem; }
@@ -285,7 +288,7 @@ app.get('/', async (req, res) => {
         <div class="container">
           <div class="header">
             <h1>🎓 みんなで暗記！</h1>
-            <p>東京農工大学 クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
+            <p>のこ大Ⅹ部 専用ダッシュボード（全 ${allQuizData.length} 問）</p>
             
             <div style="margin-top: 1rem;">
               <a href="/how-to-use" style="display: inline-block; background: #ff9900; color: white; text-decoration: none; padding: 0.6rem 1.5rem; border-radius: 9999px; font-weight: bold; box-shadow: 0 4px 10px rgba(255,153,0,0.3); transition: transform 0.2s;">
@@ -314,30 +317,38 @@ app.get('/', async (req, res) => {
           </div>
 
           <div class="csv-panel">
-            <h3>📥 CSV一括操作 ＆ テンプレート</h3>
-            <p>ExcelやGoogleスプレッドシートで作成したCSVデータの追加、バックアップ、または初心者向けのポチポチ作成を行えます。</p>
+            <h3>📝 みんなで新しいクイズを作ろう！</h3>
+            <p>パソコンやExcelが苦手なメンバーでも、ゲーム感覚で新しい問題をまとめて作れる安心ページです。</p>
+            
             <div class="csv-flex">
+              <a href="/csv-generator" class="csv-maker-link">
+                📝 問題セットをつくってみる！
+              </a>
+
               <form action="/upload-csv" method="POST" enctype="multipart/form-data" class="csv-form">
-                <input type="file" name="csv_file" accept=".csv" required class="csv-input">
-                <button type="submit" class="csv-btn">🚀 一括登録</button>
+                <span style="font-size: 0.85rem; font-weight: bold; color: #475569;">📥 メンバーから貰ったファイルをここにセットして登録：</span>
+                <div style="display: flex; gap: 8px; margin-top: 0.3rem;">
+                  <input type="file" name="csv_file" accept=".csv" required class="csv-input" style="flex: 1;">
+                  <button type="submit" class="csv-btn">🚀 登録する</button>
+                </div>
               </form>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <a href="/download-csv" class="csv-dl-link">📄 全データCSVをダウンロード</a>
-                <a href="/csv-generator" class="csv-maker-link">💻 ポチポチCSV下書きメーカー</a>
-              </div>
+
+              <a href="/download-csv" class="csv-dl-link">
+                💾 管理者用：全データのバックアップ（ファイルを保存）
+              </a>
             </div>
           </div>
 
           <div class="form-container">
-            <h2>➕ 新しいクイズを追加する</h2>
+            <h2>➕ 新しいクイズを1問だけ追加する</h2>
             <form action="/add-quiz" method="POST" enctype="multipart/form-data">
               <div class="form-row">
-                <div class="form-group"> <label for="genre">🏷️ ジャンル（大区分）</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
+                <div class="form-group"> <label for="genre">🏷️ ジャンル（大区分） *</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
                 <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸, 糖"> </div>
                 <div class="form-group"> <label for="difficulty">⭐ 難易度 (1〜5)</label> <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required> </div>
               </div>
-              <div class="form-group"> <label for="question">❓ 問題文</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
-              <div class="form-group"> <label for="answer">✅ 正解の答え</label> <input type="text" id="answer" name="answer" class="form-control" placeholder="正解となる単語" required> </div>
+              <div class="form-group"> <label for="question">❓ 問題文 *</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
+              <div class="form-group"> <label for="answer">✅ 正解の答え *</label> <input type="text" id="answer" name="answer" class="form-control" placeholder="正解となる単語" required> </div>
               <div class="form-group"> <label for="explanation">💡 解説（任意）</label> <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
               <div class="form-group"> <label for="image_file">🖼️ クイズ用の画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> </div>
               <button type="submit" class="submit-btn">✨ 登録する</button>
@@ -402,7 +413,7 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 💡 使い方ガイド専用のページ
+// 📖 使い方ガイド専用のページ
 app.get('/how-to-use', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -491,7 +502,7 @@ app.get('/how-to-use', (req, res) => {
           <li><strong>🎲 ベッティング:</strong> 所持ポイントを賭ける変則ルール。自信のある問題で一発逆転！</li>
         </ul>
 
-        <h2>3. 神機能：出題ジャンルの増やし方</h2>
+        <h2>3. 出題ジャンルの増やし方</h2>
         <p>管理画面の「➕ 新しいクイズを追加する」から、ジャンルの入力欄に<strong>「新しいジャンル名」を直接手入力して登録するだけ</strong>で、自動的にDiscordのメニューにも追加されます！</p>
       </div>
     </body>
@@ -499,7 +510,7 @@ app.get('/how-to-use', (req, res) => {
   `);
 });
 
-// 💻 初心者向けCSVジェネレーター（ポチポチ下書きメーカー）画面
+// 💻 🌟 かんたん問題セットメーカー（旧：CSVジェネレーター）画面
 app.get('/csv-generator', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -507,7 +518,7 @@ app.get('/csv-generator', (req, res) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>ポチポチCSV下書きメーカー</title>
+      <title>かんたん問題セットメーカー</title>
       <style>
         body { 
           font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 2rem; line-height: 1.6;
@@ -553,8 +564,8 @@ app.get('/csv-generator', (req, res) => {
     <body>
       <div class="container">
         <a href="/" class="back-btn">← 管理画面に戻る</a>
-        <h1>💻 ポチポチCSV下書きメーカー</h1>
-        <p class="desc">ここでは、Excelが使えない人でもフォームに文字を入れるだけで一括登録用CSVファイルを安全に作成できます。<br>追加したデータはあなたのパソコン（ブラウザ）の中にだけ保存されるので、壊れる心配はありません！作り終わったらダウンロードして管理者に渡してください。</p>
+        <h1>📝 かんたん問題セットメーカー</h1>
+        <p class="desc">難しいソフトを使わなくても、フォームを埋めるだけで新しいクイズのセットをまとめて安全に作成できます。<br>ここで入力したクイズは、あなたのパソコンの中に一時的に保存されるだけなので、何回間違えても本番データが壊れる心配はありません！<br>作り終わったら、右側の黄色いボタンからファイルを保存して、管理者に「これ追加して！」と渡してくださいね。</p>
         
         <div class="maker-layout">
           <div class="form-box">
@@ -588,7 +599,7 @@ app.get('/csv-generator', (req, res) => {
           <div class="list-box">
             <div class="list-header">
               <div class="list-count">📋 下書きリスト (<span id="count-num">0</span> 件)</div>
-              <button type="button" class="download-btn" onclick="downloadCSV()">📥 CSVをダウンロード</button>
+              <button type="button" class="download-btn" onclick="downloadCSV()">📥 完成したファイルを保存する</button>
             </div>
             
             <div class="preview-scroll" id="preview-area">
@@ -601,7 +612,6 @@ app.get('/csv-generator', (req, res) => {
       <script>
         let quizList = [];
 
-        // 画面上のリストにクイズを追加する処理
         function addQuizToList() {
           const genre = document.getElementById('g_genre').value.trim();
           const sub_genre = document.getElementById('g_sub').value.trim();
@@ -615,11 +625,9 @@ app.get('/csv-generator', (req, res) => {
             return;
           }
 
-          // リスト用データオブジェクト
           const newQuiz = { genre, sub_genre, difficulty, question, answer, explanation };
           quizList.push(newQuiz);
 
-          // フォームの問題、答え、解説だけをクリア（ジャンルや難易度は連続入力用に残す）
           document.getElementById('g_question').value = '';
           document.getElementById('g_answer').value = '';
           document.getElementById('g_exp').value = '';
@@ -627,13 +635,11 @@ app.get('/csv-generator', (req, res) => {
           updatePreview();
         }
 
-        // 指定インデックスのアイテムを削除
         function removeQuiz(index) {
           quizList.splice(index, 1);
           updatePreview();
         }
 
-        // リスト表示を更新
         function updatePreview() {
           const area = document.getElementById('preview-area');
           const countSpan = document.getElementById('count-num');
@@ -662,36 +668,31 @@ app.get('/csv-generator', (req, res) => {
           area.innerHTML = html;
         }
 
-        // HTMLエスケープ処理（安全対策）
         function escapeHtml(str) {
           if(!str) return '';
           return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
 
-        // リストを完璧なCSVにして即座にダウンロード
         function downloadCSV() {
           if (quizList.length === 0) {
             alert('下書きリストにクイズが1件も入っていません！');
             return;
           }
 
-          // 正しい英語ヘッダーを設定
           let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation\\n';
           
           quizList.forEach(q => {
-            // カンマや改行、ダブルクォーテーションを壊さないためのエスケープ処理
             const escape = (str) => \`"\${(str || '').replace(/"/g, '""')}"\`;
             csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)}\\n\`;
           });
 
-          // Excelで開いても絶対に文字化けしないように「BOM」という魔法の記号を先頭に付与
           const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
           const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
           
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.setAttribute('href', url);
-          link.setAttribute('download', 'tuat_quiz_draft.csv'); // 保存名
+          link.setAttribute('download', 'tuat_quiz_draft.csv'); 
           link.style.visibility = 'hidden';
           document.body.appendChild(link);
           link.click();
@@ -766,7 +767,7 @@ app.post('/delete-quiz', async (req, res) => {
 });
 
 // ==========================================================
-// 📥 CSVファイルからクイズを一括登録する (Upload)
+// 📥 ファイルからクイズを一括登録する
 // ==========================================================
 app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
   try {
@@ -779,10 +780,10 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
       columns: true,       
       skip_empty_lines: true, 
       trim: true,
-      bom: true // 🌟 前回のBOM対策をここにも適用しておきました！
+      bom: true 
     });
 
-    console.log(`📦 CSVから ${records.length} 件のデータを検出しました。登録を開始します...`);
+    console.log(`📦 ファイルから ${records.length} 件のデータを検出しました。登録を開始します...`);
 
     for (const record of records) {
       await axios.get(process.env.GAS_WEB_APP_URL, {
@@ -810,13 +811,13 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
     `);
 
   } catch (error) {
-    console.error('CSV一括登録エラー:', error);
-    res.status(500).send('<h2>❌ CSVの解析または登録中にエラーが発生しました。</h2><a href="/">戻る</a>');
+    console.error('一括登録エラー:', error);
+    res.status(500).send('<h2>❌ ファイルの解析または登録中にエラーが発生しました。</h2><a href="/">戻る</a>');
   }
 });
 
 // ==========================================================
-// 📤 CSVダウンロード (BOM付きUTF-8)
+// 📤 ダウンロード
 // ==========================================================
 app.get('/download-csv', async (req, res) => {
   try {
@@ -839,8 +840,8 @@ app.get('/download-csv', async (req, res) => {
     res.send(buffer);
 
   } catch (error) {
-    console.error('CSVダウンロードエラー:', error);
-    res.status(500).send('CSVのダウンロードに失敗しました。');
+    console.error('ダウンロードエラー:', error);
+    res.status(500).send('データのダウンロードに失敗しました。');
   }
 });
 
