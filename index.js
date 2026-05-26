@@ -94,7 +94,7 @@ app.get('/', async (req, res) => {
       const quizId = quiz.id || '-';
       const currentGenre = quiz.genre || '未分類';
 
-      if (editId && quizId.toString() === editId.toString()) {
+     if (editId && quizId.toString() === editId.toString()) {
         quizCardsHtml += `
           <div class="quiz-card editing-card" data-genre="${currentGenre}">
             <span class="id-badge"># ${quizId} を編集中</span>
@@ -103,8 +103,8 @@ app.get('/', async (req, res) => {
               <input type="hidden" name="old_image" value="${quiz.image || ''}">
               
               <div class="form-row">
-                <div class="form-group"> <label>🏷️ ジャンル（大区分）</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
-                <div class="form-group"> <label>📂 小区分（単元名）</label> <input type="text" name="sub_genre" class="form-control" value="${quiz.sub_genre || ''}" placeholder="例: αアミノ酸"> </div>
+                <div class="form-group"> <label>🏷️ ジャンル</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
+                <div class="form-group"> <label>📂 小区分（単元名など）</label> <input type="text" name="sub_genre" class="form-control" value="${quiz.sub_genre || ''}"> </div>
                 <div class="form-group"> <label>⭐ 難易度</label> <input type="number" name="difficulty" class="form-control" min="1" max="5" value="${quiz.difficulty || 1}" required> </div>
               </div>
               <div class="form-group"> <label>❓ 問題文</label> <textarea name="question" class="form-control" rows="3" required>${quiz.question || ''}</textarea> </div>
@@ -118,14 +118,14 @@ app.get('/', async (req, res) => {
             </form>
           </div>
         `;
-      } else {
+     } else {
         quizCardsHtml += `
           <div class="quiz-card" data-genre="${currentGenre}">
             <div class="card-header-tags">
               <input type="checkbox" class="quiz-select-checkbox" value="${quizId}" onchange="updateBulkDeleteButton()">
               <span class="id-badge"># ${quizId}</span>
               <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
-              ${quiz.sub_genre ? `<span class="sub-genre-badge">📂 ${quiz.sub_genre}</span>` : ''}
+              <span class="genre-badge" style="background:#009944;">📂 ${quiz.sub_genre || '小区分なし'}</span>
               <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
             </div>
             <h3>Q. ${quiz.question}</h3>
@@ -326,12 +326,12 @@ app.get('/', async (req, res) => {
             </div>
           </div>
 
-          <div class="form-container">
+         <div class="form-container">
             <h2>➕ 新しいクイズを追加する</h2>
             <form action="/add-quiz" method="POST" enctype="multipart/form-data">
               <div class="form-row">
-                <div class="form-group"> <label for="genre">🏷️ ジャンル（大区分）</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
-                <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸, 糖"> </div>
+                <div class="form-group"> <label for="genre">🏷️ ジャンル</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 航空宇宙" required> </div>
+                <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸"> </div>
                 <div class="form-group"> <label for="difficulty">⭐ 難易度 (1〜5)</label> <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required> </div>
               </div>
               <div class="form-group"> <label for="question">❓ 問題文</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
@@ -506,7 +506,7 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ追加（小区分 sub_genre パラメータを追加！）
+// 🛠️ クイズ追加
 app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
@@ -516,7 +516,7 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
       params: { 
         action: 'add', 
         genre: genre, 
-        sub_genre: sub_genre || '',
+        sub_genre: sub_genre || '', 
         difficulty: difficulty, 
         question: question, 
         answer: answer, 
@@ -528,7 +528,7 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ編集（小区分 sub_genre パラメータを追加！）
+// 🛠️ クイズ編集
 app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image } = req.body;
@@ -539,7 +539,7 @@ app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
         action: 'edit', 
         id: id,
         genre: genre, 
-        sub_genre: sub_genre || '',
+        sub_genre: sub_genre || '', 
         difficulty: difficulty, 
         question: question, 
         answer: answer, 
