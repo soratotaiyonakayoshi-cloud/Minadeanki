@@ -831,57 +831,99 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ追加 (🌟 複数ファイルアップロード対応に更新)
+// 🛠️ クイズ追加 (🌟 Googleドライブ自動転送・POST対応版)
 app.post('/add-quiz', quizUploadFields, async (req, res) => {
   try {
     const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
     
-    // 各ファイル名を取得
-    const imageName = req.files && req.files['image_file'] ? req.files['image_file'][0].filename : '';
-    const expImageName = req.files && req.files['exp_image_file'] ? req.files['exp_image_file'][0].filename : '';
-    
-    await axios.get(process.env.GAS_WEB_APP_URL, { 
-      params: { 
-        action: 'add', 
-        genre: genre, 
-        sub_genre: sub_genre || '',
-        difficulty: difficulty, 
-        question: question, 
-        answer: answer, 
-        explanation: explanation, 
-        image: imageName,
-        exp_image: expImageName // 🌟 GASへ送信
-      } 
-    });
-    res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 登録が完了しました！</h1><p>まもなく戻ります...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { console.error(error); res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
+    // GASのdoPostへ送るベースデータを構築
+    let postData = {
+      action: 'add',
+      genre: genre,
+      sub_genre: sub_genre || '',
+      difficulty: difficulty,
+      question: question,
+      answer: answer,
+      explanation: explanation || ''
+    };
+
+    // 🖼️ 問題画像がある場合、Base64文字列に変換してセット
+    if (req.files && req.files['image_file']) {
+      const file = req.files['image_file'][0];
+      postData.image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.image_mime = file.mimetype;
+      postData.image_name = file.originalname;
+      
+      // 送信後はサーバーの容量を圧迫しないよう、ローカルの一時ファイルは即時削除
+      fs.unlinkSync(file.path);
+    }
+
+    // 💡 解説画像がある場合、Base64文字列に変換してセット
+    if (req.files && req.files['exp_image_file']) {
+      const file = req.files['exp_image_file'][0];
+      postData.exp_image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.exp_image_mime = file.mimetype;
+      postData.exp_image_name = file.originalname;
+      
+      fs.unlinkSync(file.path);
+    }
+
+    // 🚀 GASウェブアプリURLへ、axios.post でデータを一撃送信！
+    await axios.post(process.env.GAS_WEB_APP_URL, postData);
+
+    res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 クイズを登録しました！</h1><p>画像はGoogleドライブへ自動保存されました。画面を戻しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
+  } catch (error) {
+    console.error('クイズ登録エラー💦', error);
+    res.send('<h2 style="text-align:center;">クイズ登録中にエラーが発生しました。</h2>');
+  }
 });
 
-// 🛠️ クイズ編集 (🌟 複数ファイルアップロード対応に更新)
+// 🛠️ クイズ編集 (🌟 Googleドライブ自動転送・POST対応版)
 app.post('/edit-quiz', quizUploadFields, async (req, res) => {
   try {
     const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image } = req.body;
     
-    // 新しいファイルがなければ既存のものを引き継ぐ
-    const imageName = req.files && req.files['image_file'] ? req.files['image_file'][0].filename : old_image;
-    const expImageName = req.files && req.files['exp_image_file'] ? req.files['exp_image_file'][0].filename : old_exp_image;
-    
-    await axios.get(process.env.GAS_WEB_APP_URL, { 
-      params: { 
-        action: 'edit', 
-        id: id, 
-        genre: genre, 
-        sub_genre: sub_genre || '',
-        difficulty: difficulty, 
-        question: question, 
-        answer: answer, 
-        explanation: explanation, 
-        image: imageName,
-        exp_image: expImageName // 🌟 GASへ送信
-      } 
-    });
-    res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 上書き保存が完了しました！</h1><p>まもなく戻ります...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { console.error(error); res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
+    let postData = {
+      action: 'edit',
+      id: id,
+      genre: genre,
+      sub_genre: sub_genre || '',
+      difficulty: difficulty,
+      question: question,
+      answer: answer,
+      explanation: explanation || '',
+      image: old_image || '',       // 新しい画像がない場合は古いURLを維持
+      exp_image: old_exp_image || '' // 新しい画像がない場合は古いURLを維持
+    };
+
+    // 🖼️ 新しい問題画像がアップロードされた場合
+    if (req.files && req.files['image_file']) {
+      const file = req.files['image_file'][0];
+      postData.image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.image_mime = file.mimetype;
+      postData.image_name = file.originalname;
+      
+      fs.unlinkSync(file.path);
+    }
+
+    // 💡 新しい解説画像がアップロードされた場合
+    if (req.files && req.files['exp_image_file']) {
+      const file = req.files['exp_image_file'][0];
+      postData.exp_image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.exp_image_mime = file.mimetype;
+      postData.exp_image_name = file.originalname;
+      
+      fs.unlinkSync(file.path);
+    }
+
+    // 🚀 GASへ上書きデータをポスト送信！
+    await axios.post(process.env.GAS_WEB_APP_URL, postData);
+
+    res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 クイズを上書き保存しました！</h1><p>画面を戻しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
+  } catch (error) {
+    console.error('クイズ編集エラー💦', error);
+    res.send('<h2 style="text-align:center;">クイズ編集中にエラーが発生しました。</h2>');
+  }
 });
 
 // クイズ削除
