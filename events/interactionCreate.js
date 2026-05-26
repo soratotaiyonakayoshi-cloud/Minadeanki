@@ -1,16 +1,13 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 const { OpenAI } = require('openai');
-const { ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType, StringSelectMenuBuilder, EmbedBuilder } = require('discord.js');
+const { ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType, StringSelectMenuBuilder } = require('discord.js');
 
-// 🌐 設定エリア
+// 🌐 設定エリア（環境変数から読み込むように変更！）
 const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
 const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 async function getQuizDataFromSheets() {
   try {
     const response = await axios.get(SPREADSHEET_CSV_URL, {
@@ -55,7 +52,7 @@ function shuffleArray(array) {
   return array;
 }
 
-// 🎮 【対戦モード】 出題関数
+// 出題関数（ハブ）
 async function sendGameQuestion(thread, gameData) {
   gameData.roundProcessing = false; 
   if (gameData.mode === 'betting') {
@@ -84,18 +81,12 @@ async function sendGameQuestion(thread, gameData) {
   let imageContent = '';
   let quizAttachment = null; 
 
-  // 🌟 ローカル問題画像への対応
-  if (currentQuiz.image) {
-    if (currentQuiz.image.startsWith('http')) {
-      imageContent = `\n\n🖼️ **【画像問題】**`;
-      quizAttachment = new AttachmentBuilder(currentQuiz.image, { name: 'quiz_image.png' });
-    } else {
-      const imagePath = path.join(__dirname, '..', 'images', currentQuiz.image);
-      if (fs.existsSync(imagePath)) {
-        imageContent = `\n\n🖼️ **【画像問題】**`;
-        quizAttachment = new AttachmentBuilder(imagePath, { name: 'quiz_image.png' });
-      }
-    }
+  // ⭐【修正箇所1】GASプロキシURLを経由するように修正
+  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+    imageContent = `\n\n🖼️ **【画像問題】**`;
+    const encodedUrl = encodeURIComponent(currentQuiz.image);
+    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' });
   }
 
   const sendOptions = {
@@ -103,7 +94,9 @@ async function sendGameQuestion(thread, gameData) {
     components: [row]
   };
 
-  if (quizAttachment) sendOptions.files = [quizAttachment];
+  if (quizAttachment) {
+    sendOptions.files = [quizAttachment];
+  }
 
   try {
     const msg = await thread.send(sendOptions);
@@ -180,18 +173,12 @@ async function exposeBettingQuestion(thread, gameData) {
   let imageContent = '';
   let quizAttachment = null; 
 
-  // 🌟 ローカル問題画像への対応
-  if (currentQuiz.image) {
-    if (currentQuiz.image.startsWith('http')) {
-      imageContent = `\n\n🖼️ **【画像問題】**`;
-      quizAttachment = new AttachmentBuilder(currentQuiz.image, { name: 'quiz_image.png' });
-    } else {
-      const imagePath = path.join(__dirname, '..', 'images', currentQuiz.image);
-      if (fs.existsSync(imagePath)) {
-        imageContent = `\n\n🖼️ **【画像問題】**`;
-        quizAttachment = new AttachmentBuilder(imagePath, { name: 'quiz_image.png' });
-      }
-    }
+  // ⭐【修正箇所2】ベッティングモード用出題でもGASプロキシURLを経由するように修正
+  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
+    imageContent = `\n\n🖼️ **【画像問題】**`;
+    const encodedUrl = encodeURIComponent(currentQuiz.image);
+    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
+    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' });
   }
 
   const sendOptions = {
@@ -199,7 +186,9 @@ async function exposeBettingQuestion(thread, gameData) {
     components: [row]
   };
 
-  if (quizAttachment) sendOptions.files = [quizAttachment];
+  if (quizAttachment) {
+    sendOptions.files = [quizAttachment];
+  }
 
   try {
     const msg = await thread.send(sendOptions);
@@ -215,7 +204,7 @@ async function exposeBettingQuestion(thread, gameData) {
   gameData.timer = setTimeout(async () => { await endRound(thread, gameData); }, gameData.timeLimit * 1000);
 }
 
-// 🎮 【対戦モード】 ラウンド終了（結果発表＆解説画像）関数
+// ラウンド終了（結果発表）関数
 async function endRound(thread, gameData) {
   if (gameData.roundProcessing) return;
   gameData.roundProcessing = true;
@@ -228,7 +217,7 @@ async function endRound(thread, gameData) {
   let resultText = `🎯 **【正解】** ${currentQuiz.answer}\n💡 **【解説】**\n${currentQuiz.explanation || 'なし'}\n\n`;
   
   if (gameData.mode === 'survival') {
-    resultText = `🎉 **ラウンド終了！サバイバル判定**\n\n🎯 **【正解】** ${currentQuiz.answer}\n💡 **【解説】**\n${currentQuiz.explanation || 'なし'}\n\n`;
+    resultText = `🎉 **ラウンド終了！サバイバル判定**\n\n🎯 **【正解】** ${currentQuiz.answer}\n\n`;
     for (const userId of gameData.activePlayers) {
       if (gameData.lives[userId] <= 0) continue;
       const roundAns = gameData.roundAnswers.find(a => a.id === userId);
@@ -246,7 +235,7 @@ async function endRound(thread, gameData) {
     }
 
   } else if (gameData.mode === 'betting') {
-    resultText = `🎉 **ラウンド終了！ベッティング結果精算**\n\n🎯 **【正解】** ${currentQuiz.answer}\n💡 **【解説】**\n${currentQuiz.explanation || 'なし'}\n\n`;
+    resultText = `🎉 **ラウンド終了！ベッティング結果精算**\n\n🎯 **【正解】** ${currentQuiz.answer}\n\n`;
     for (const userId of gameData.activePlayers) {
       const pName = gameData.playerNames[userId] || '不明';
       const bet = gameData.currentBets[userId] || 0;
@@ -266,7 +255,7 @@ async function endRound(thread, gameData) {
 
   } else {
     if (gameData.roundAnswers.length > 0) {
-      resultText = `🎉 **ラウンド終了！正解リザルト**\n\n🎯 **【正解】** ${currentQuiz.answer}\n💡 **【解説】**\n${currentQuiz.explanation || 'なし'}\n\n`;
+      resultText = `🎉 **ラウンド終了！正解リザルト**\n\n🎯 **【正解】** ${currentQuiz.answer}\n\n`;
       gameData.roundAnswers.sort((a, b) => a.time - b.time);
       gameData.roundAnswers.forEach((ans, idx) => {
         if (ans.points > 0) resultText += `${idx + 1}位: **${ans.name}** (${ans.time}秒) ➜ +${ans.points}点\n`;
@@ -276,22 +265,7 @@ async function endRound(thread, gameData) {
     }
   }
 
-  // 🌟 解説結果をEmbed化し、解説画像をセット
-  const embed = new EmbedBuilder()
-    .setColor('#ff9900')
-    .setDescription(resultText);
-
-  const messageOptions = { embeds: [embed], files: [] };
-
-  if (currentQuiz.exp_image) {
-    const expImagePath = path.join(__dirname, '..', 'images', currentQuiz.exp_image);
-    if (fs.existsSync(expImagePath)) {
-      messageOptions.files.push(new AttachmentBuilder(expImagePath, { name: 'exp_image.png' }));
-      embed.setImage('attachment://exp_image.png');
-    }
-  }
-
-  await thread.send(messageOptions).catch(() => {});
+  await thread.send(resultText).catch(() => {});
 
   gameData.currentRound++;
   if (gameData.currentRound < gameData.maxQuestions) {
@@ -337,7 +311,6 @@ module.exports = {
       try { await command.execute(interaction); } catch (error) { console.error(error); }
     }
 
-    // 早押しクイズのボタンを押した時
     if (interaction.isButton() && interaction.customId.startsWith('answer_')) {
       const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
       const parts = interaction.customId.split('_'); const quizId = parts[1]; const startTime = parseInt(parts[2], 10);
@@ -348,59 +321,25 @@ module.exports = {
       await interaction.showModal(modal);
     }
 
-    // 🛎️ 【早押しクイズ】 文字入力して回答した時の正解発表処理
     if (interaction.isModalSubmit() && interaction.customId.startsWith('submitAnswer_')) {
       const parts = interaction.customId.split('_'); const quizId = parts[1]; const timeDiff = parts[2];
       const playerAnswer = interaction.fields.getTextInputValue('playerAnswer');
       const currentQuizData = await getQuizDataFromSheets(); const quiz = currentQuizData.find(q => q.id === quizId);
-      
       if (quiz) {
         if (formatText(playerAnswer) === formatText(quiz.answer)) {
-          // 🌟 Embed化と解説画像対応
-          const embed = new EmbedBuilder()
-            .setTitle('🎉 正解！')
-            .setDescription(`📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🛎️ **${interaction.user.displayName}** さんが **${timeDiff}秒** で見事正解しました！\n\n🎯 **【答え】** ${quiz.answer}\n\n💡 **【解説】**\n${quiz.explanation || 'なし'}`)
-            .setColor('#009944');
-          
-          const messageOptions = { content: '', embeds: [embed], components: [], files: [] };
-          
-          if (quiz.exp_image) {
-            const expImagePath = path.join(__dirname, '..', 'images', quiz.exp_image);
-            if (fs.existsSync(expImagePath)) {
-              messageOptions.files.push(new AttachmentBuilder(expImagePath, { name: 'exp_image.png' }));
-              embed.setImage('attachment://exp_image.png'); // インライン表示マジック！
-            }
-          }
-          await interaction.update(messageOptions);
+          await interaction.update({ content: `📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🎉 **正解！**\n🛎️ **${interaction.user.displayName}** さんが **${timeDiff}秒** で見事正解しました！\n\n🎯 **【答え】** ${quiz.answer}\n\n💡 **【解説】**\n${quiz.explanation}`, components: [] });
         } else {
           await interaction.reply({ content: `❌ **${interaction.user.displayName}** さん、残念！「${playerAnswer}」は不正解です！` });
         }
       }
     }
 
-    // 🔘 【単発4択クイズ】 パネルのボタンを押した時の正解発表処理
     if (interaction.isButton() && interaction.customId.startsWith('panelAnswer_')) {
       const parts = interaction.customId.split('_'); const quizId = parts[1]; const correctIndex = parts[2]; const myIndex = parts[3];
       const currentQuizData = await getQuizDataFromSheets(); const quiz = currentQuizData.find(q => q.id === quizId);
-      
       if (quiz) {
         if (correctIndex === myIndex) {
-          // 🌟 Embed化と解説画像対応
-          const embed = new EmbedBuilder()
-            .setTitle('🎉 正解！')
-            .setDescription(`📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🛎️ **${interaction.user.displayName}** さんが、見事 **${quiz.answer}** を選択して正解しました！\n\n💡 **【解説】**\n${quiz.explanation || 'なし'}`)
-            .setColor('#009944');
-          
-          const messageOptions = { content: '', embeds: [embed], components: [], files: [] };
-          
-          if (quiz.exp_image) {
-            const expImagePath = path.join(__dirname, '..', 'images', quiz.exp_image);
-            if (fs.existsSync(expImagePath)) {
-              messageOptions.files.push(new AttachmentBuilder(expImagePath, { name: 'exp_image.png' }));
-              embed.setImage('attachment://exp_image.png'); // インライン表示マジック！
-            }
-          }
-          await interaction.update(messageOptions);
+          await interaction.update({ content: `📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🎉 **正解！**\n🛎️ **${interaction.user.displayName}** さんが、見事 **${quiz.answer}** を選択して正解しました！\n\n💡 **【解説】**\n${quiz.explanation}`, components: [] });
         } else {
           await interaction.reply({ content: `❌ **${interaction.user.displayName}** さん、残念！不正解です！`, flags: 64 });
         }
@@ -442,6 +381,7 @@ module.exports = {
           ...genres.map(g => ({ label: g, value: g, default: game.genre === g }))
         ]);
 
+      // 💡 ダッシュボードのカスタム値をメニューに維持する機能
       const timeOpts = [
         { label: '瞬発力特化！ (5秒)', value: '5' },
         { label: '標準モード (15秒)', value: '15' },
@@ -630,6 +570,17 @@ module.exports = {
       if (activeGame.roundAnswers.length >= totalTargetPlayers && totalTargetPlayers > 0) {
         await endRound(interaction.channel, activeGame);
       }
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('addQuizModal_')) {
+      const chosenGenre = interaction.customId.replace('addQuizModal_', '');
+      const newDiff = interaction.fields.getTextInputValue('diffInput'); const newQuestion = interaction.fields.getTextInputValue('questionInput');
+      const newAnswer = interaction.fields.getTextInputValue('answerInput'); const newExpl = interaction.fields.getTextInputValue('explInput');
+      try {
+        await interaction.deferReply({ flags: 64 });
+        await axios.get(GAS_WEB_APP_URL, { params: { genre: chosenGenre, difficulty: newDiff, question: newQuestion, answer: newAnswer, explanation: newExpl } });
+        await interaction.editReply({ content: `🎉 **登録完了！**\n🏷️ ジャンル: ${chosenGenre}\n⭐ 難易度: ${newDiff}\n📝 問題: ${newQuestion}\n🎯 答え: ${newAnswer}` });
+      } catch (error) { await interaction.editReply({ content: '❌ 保存中にエラーが発生しました。' }); }
     }
 
   },
