@@ -94,7 +94,7 @@ app.get('/', async (req, res) => {
       const quizId = quiz.id || '-';
       const currentGenre = quiz.genre || '未分類';
 
-     if (editId && quizId.toString() === editId.toString()) {
+      if (editId && quizId.toString() === editId.toString()) {
         quizCardsHtml += `
           <div class="quiz-card editing-card" data-genre="${currentGenre}">
             <span class="id-badge"># ${quizId} を編集中</span>
@@ -103,8 +103,8 @@ app.get('/', async (req, res) => {
               <input type="hidden" name="old_image" value="${quiz.image || ''}">
               
               <div class="form-row">
-                <div class="form-group"> <label>🏷️ ジャンル</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
-                <div class="form-group"> <label>📂 小区分（単元名など）</label> <input type="text" name="sub_genre" class="form-control" value="${quiz.sub_genre || ''}"> </div>
+                <div class="form-group"> <label>🏷️ ジャンル（大区分）</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
+                <div class="form-group"> <label>📂 小区分（単元名など）</label> <input type="text" name="sub_genre" class="form-control" value="${quiz.sub_genre || ''}" placeholder="例: αアミノ酸"> </div>
                 <div class="form-group"> <label>⭐ 難易度</label> <input type="number" name="difficulty" class="form-control" min="1" max="5" value="${quiz.difficulty || 1}" required> </div>
               </div>
               <div class="form-group"> <label>❓ 問題文</label> <textarea name="question" class="form-control" rows="3" required>${quiz.question || ''}</textarea> </div>
@@ -118,14 +118,14 @@ app.get('/', async (req, res) => {
             </form>
           </div>
         `;
-     } else {
+      } else {
         quizCardsHtml += `
           <div class="quiz-card" data-genre="${currentGenre}">
             <div class="card-header-tags">
               <input type="checkbox" class="quiz-select-checkbox" value="${quizId}" onchange="updateBulkDeleteButton()">
               <span class="id-badge"># ${quizId}</span>
               <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
-              <span class="genre-badge" style="background:#009944;">📂 ${quiz.sub_genre || '小区分なし'}</span>
+              ${quiz.sub_genre ? `<span class="sub-genre-badge">📂 ${quiz.sub_genre}</span>` : ''}
               <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
             </div>
             <h3>Q. ${quiz.question}</h3>
@@ -215,7 +215,6 @@ app.get('/', async (req, res) => {
           }
           .settings-accordion.open .accordion-content { display: block; }
           
-          /* CSV パネルのデザイン */
           .csv-panel { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #005bac; padding: 1.5rem 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 1.5rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); }
           .csv-panel h3 { margin-top: 0; font-size: 1.2rem; color: #005bac; display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
           .csv-panel p { font-size: 0.85rem; color: #556677; margin-bottom: 1rem; margin-top: 0; }
@@ -326,12 +325,12 @@ app.get('/', async (req, res) => {
             </div>
           </div>
 
-         <div class="form-container">
+          <div class="form-container">
             <h2>➕ 新しいクイズを追加する</h2>
             <form action="/add-quiz" method="POST" enctype="multipart/form-data">
               <div class="form-row">
-                <div class="form-group"> <label for="genre">🏷️ ジャンル</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 航空宇宙" required> </div>
-                <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸"> </div>
+                <div class="form-group"> <label for="genre">🏷️ ジャンル（大区分）</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
+                <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸, 糖"> </div>
                 <div class="form-group"> <label for="difficulty">⭐ 難易度 (1〜5)</label> <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required> </div>
               </div>
               <div class="form-group"> <label for="question">❓ 問題文</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
@@ -382,7 +381,7 @@ app.get('/', async (req, res) => {
             if (checkboxes.length > 0) {
               const ids = Array.from(checkboxes).map(cb => cb.value);
               hiddenInput.value = ids.join(',');
-              text.textContent = ids.length + ' 件のクイズを選択中';
+              text.textContent = ids.length + ' 件 of クイズを選択中';
               btn.style.display = 'inline-block';
             } else {
               hiddenInput.value = '';
@@ -506,7 +505,7 @@ app.post('/save-settings', async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ追加
+// 🛠️ クイズ追加（sub_genre対応！）
 app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
@@ -516,7 +515,7 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
       params: { 
         action: 'add', 
         genre: genre, 
-        sub_genre: sub_genre || '', 
+        sub_genre: sub_genre || '',
         difficulty: difficulty, 
         question: question, 
         answer: answer, 
@@ -528,7 +527,7 @@ app.post('/add-quiz', upload.single('image_file'), async (req, res) => {
   } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
 });
 
-// 🛠️ クイズ編集
+// 🛠️ クイズ編集（sub_genre対応！）
 app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
   try {
     const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image } = req.body;
@@ -537,9 +536,9 @@ app.post('/edit-quiz', upload.single('image_file'), async (req, res) => {
     await axios.get(process.env.GAS_WEB_APP_URL, { 
       params: { 
         action: 'edit', 
-        id: id,
+        id: id, 
         genre: genre, 
-        sub_genre: sub_genre || '', 
+        sub_genre: sub_genre || '',
         difficulty: difficulty, 
         question: question, 
         answer: answer, 
@@ -560,7 +559,7 @@ app.post('/delete-quiz', async (req, res) => {
 });
 
 // ==========================================================
-// 📥 機能1：CSVファイルからクイズを一括登録する (Upload)
+// 📥 CSVファイルからクイズを一括登録する (Upload)
 // ==========================================================
 app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
   try {
@@ -609,26 +608,21 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
 });
 
 // ==========================================================
-// 📤 機能2：現在のリアルなクイズデータをCSVとして書き出す (Download)
+// 📤 CSVダウンロード (BOM付きUTF-8)
 // ==========================================================
 app.get('/download-csv', async (req, res) => {
   try {
     const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
     const response = await axios.get(SPREADSHEET_CSV_URL, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } });
-    
-    // スプレッドシートから取得した生データをパース
     const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
     
-    // ユーザーがそのままアップロード用テンプレートとしても使える形式に再構成
     let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation\n';
     
     for (const q of allQuizData) {
-      // カンマや改行が含まれても壊れないようにエスケープ処理
       const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
       csvContent += `${escape(q.genre)},${escape(q.sub_genre)},${q.difficulty || 1},${escape(q.question)},${escape(q.answer)},${escape(q.explanation)}\n`;
     }
     
-    // Excelで開いても絶対に文字化けしないように UTF-8 (BOM付き) で書き出し
     const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
     const buffer = Buffer.concat([bom, Buffer.from(csvContent, 'utf8')]);
 
