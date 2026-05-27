@@ -81,9 +81,10 @@ app.get('/', async (req, res) => {
     const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
     const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 
+    const separator = SPREADSHEET_CSV_URL.includes('?') ? '&' : '?';
     const [csvResponse, settingsResponse] = await Promise.all([
-      axios.get(SPREADSHEET_CSV_URL, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } }),
-      axios.get(`${GAS_WEB_APP_URL}?action=getSettings`)
+      axios.get(`${SPREADSHEET_CSV_URL}${separator}t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } }),
+      axios.get(`${GAS_WEB_APP_URL}?action=getSettings&t=${Date.now()}`)
     ]);
 
     const allQuizData = parse(csvResponse.data, { columns: true, skip_empty_lines: true });
@@ -1089,7 +1090,8 @@ app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
 app.get('/download-csv', async (req, res) => {
   try {
     const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
-    const response = await axios.get(SPREADSHEET_CSV_URL, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } });
+    const separator = SPREADSHEET_CSV_URL.includes('?') ? '&' : '?';
+    const response = await axios.get(`${SPREADSHEET_CSV_URL}${separator}t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } });
     const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
     
     // ヘッダーに exp_image をバッチリ追加
