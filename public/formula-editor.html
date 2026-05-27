@@ -548,13 +548,12 @@
         throw new Error('構造式エディタにアクセスできません。');
       }
 
-      // Ketcher v2 のキャンバス内SVGを探す
+      // Ketcher のキャンバス内SVGを探す
       var svgElement = ketcherDoc.querySelector('svg.canvas');
       if (!svgElement) {
         svgElement = ketcherDoc.querySelector('svg[class*="canvas"]');
       }
       if (!svgElement) {
-        // フォールバック: 一番大きいSVGを使う
         var allSvgs = ketcherDoc.querySelectorAll('svg');
         var maxArea = 0;
         for (var i = 0; i < allSvgs.length; i++) {
@@ -567,17 +566,46 @@
         throw new Error('構造式エディタのキャンバスが見つかりません。');
       }
 
-      // 描画された要素のバウンディングボックスを計算してクリッピング
-      var drawnElements = svgElement.querySelectorAll('path, line, circle, text, polygon, polyline, ellipse, rect');
-      if (drawnElements.length === 0) {
-        throw new Error('構造式が描画されていません。何か描いてからエクスポートしてください。');
-      }
+      // SVG全体のサイズを取得（背景/グリッド除外に使用）
+      var svgRect = svgElement.getBoundingClientRect();
+      var svgW = svgRect.width;
+      var svgH = svgRect.height;
 
+      // 描画された要素のバウンディングボックスを計算
+      // ただし背景rect・グリッド線・非表示要素を除外する
+      var allElements = svgElement.querySelectorAll('path, line, circle, text, polygon, polyline, ellipse, rect');
       var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      drawnElements.forEach(function(el) {
+      var foundDrawn = false;
+
+      allElements.forEach(function(el) {
         try {
+          // 非表示要素をスキップ
+          var style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') return;
+          if (parseFloat(style.opacity) < 0.1) return;
+
           var bbox = el.getBBox();
           if (bbox.width === 0 && bbox.height === 0) return;
+
+          // キャンバス全体を覆う巨大なrect（背景）をスキップ
+          if (el.tagName === 'rect') {
+            if (bbox.width > svgW * 0.9 && bbox.height > svgH * 0.9) return;
+          }
+
+          // グリッド線をスキップ（非常に薄い色 or 特定classを持つもの）
+          var stroke = style.stroke;
+          var fill = style.fill;
+          if (el.tagName === 'line' || el.tagName === 'path') {
+            if (stroke === 'none' && (fill === 'none' || fill === 'transparent')) return;
+            // グリッド線は通常とても薄い
+            if (parseFloat(style.strokeOpacity) < 0.15) return;
+          }
+
+          // クラス名にgrid/backgroundが含まれる要素をスキップ
+          var cls = (el.getAttribute('class') || '') + ' ' + (el.parentElement ? el.parentElement.getAttribute('class') || '' : '');
+          if (/grid|background|backdrop/i.test(cls)) return;
+
+          foundDrawn = true;
           if (bbox.x < minX) minX = bbox.x;
           if (bbox.y < minY) minY = bbox.y;
           if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
@@ -585,12 +613,12 @@
         } catch(e) { /* getBBox can fail on hidden elements */ }
       });
 
-      if (minX === Infinity) {
+      if (!foundDrawn || minX === Infinity) {
         throw new Error('構造式が描画されていません。何か描いてからエクスポートしてください。');
       }
 
-      // 余白を少し追加
-      var padding = 20;
+      // 余白を追加
+      var padding = 30;
       minX -= padding; minY -= padding;
       maxX += padding; maxY += padding;
       var cropW = maxX - minX;
@@ -601,7 +629,8 @@
       clonedSvg.setAttribute('viewBox', minX + ' ' + minY + ' ' + cropW + ' ' + cropH);
       clonedSvg.setAttribute('width', cropW * 2);
       clonedSvg.setAttribute('height', cropH * 2);
-      // 背景色を白に
+
+      // 背景色を白に（最前面の要素の背後に挿入）
       var bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       bgRect.setAttribute('x', minX);
       bgRect.setAttribute('y', minY);
