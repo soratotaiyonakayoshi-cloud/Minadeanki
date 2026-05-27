@@ -571,7 +571,7 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
 });
 
 // ==========================================================
-// 🌟 2. 一問ずつ追加タブからの送信処理（単発POST）
+// 🌟 2. 一問ずつ追加タブからの送信処理（単発POST - エラー検知版）
 // ==========================================================
 app.post('/add-quiz', quizUploadFields, async (req, res) => {
   try {
@@ -591,9 +591,28 @@ app.post('/add-quiz', quizUploadFields, async (req, res) => {
       fs.unlinkSync(file.path);
     }
 
-    await axios.post(process.env.GAS_WEB_APP_URL, postData);
+    // GASにデータを送信
+    const response = await axios.post(process.env.GAS_WEB_APP_URL, postData);
+    
+    // 🌟 GASから返ってきた文字をチェックし、"Error" という文字が含まれていたら画面に表示する
+    if (typeof response.data === 'string' && response.data.includes('Error')) {
+      console.error("❌ GAS側でエラーが発生しました:", response.data);
+      return res.send(`
+        <div style="background:#d9534f; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif; padding:20px; text-align:center;">
+          <h1>❌ GAS（Google）側でエラーが発生しました</h1>
+          <p style="background:rgba(0,0,0,0.2); padding:15px; border-radius:5px; font-family:monospace; max-width:800px; word-wrap:break-word;">
+            ${response.data}
+          </p>
+          <button onclick="window.history.back()" style="margin-top:20px; padding:10px 20px; background:#fff; color:#d9534f; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">戻る</button>
+        </div>
+      `);
+    }
+
     res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 クイズを登録しました！</h1><p>画像はドライブの「クイズ用」フォルダに保存されました。</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { res.send('<h2 style="text-align:center;">クイズ登録中にエラーが発生しました。</h2>'); }
+  } catch (error) { 
+    console.error("❌ Node.js通信エラー:", error);
+    res.send('<h2 style="text-align:center;">クイズ登録中に通信エラーが発生しました。</h2>'); 
+  }
 });
 
 // ==========================================================
