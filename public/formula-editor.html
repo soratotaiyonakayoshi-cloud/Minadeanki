@@ -231,17 +231,17 @@
       </div>
     </div>
 
-    <!-- ===== Tab 2: Structure Editor (Kekule.js) ===== -->
+    <!-- ===== Tab 2: Structure Editor (JSME) ===== -->
     <div id="tab-structure" class="tab-panel">
-      <p class="hint" style="margin-top:0;">🖱️ マウスで原子を配置し、ドラッグで結合を描画できます。ベンゼン環やシクロヘキサンなどのテンプレートもツールバーから使えます。</p>
-      <div class="kekule-wrapper" id="kekule-wrapper">
-        <div class="kekule-loading" id="kekule-loading">⏳ 構造式エディタを読み込み中...</div>
-        <div id="kekule-area" style="width:100%; height:100%;"></div>
+      <p class="hint" style="margin-top:0;">🖱️ ツールバーから結合（棒線）や原子（周期表）を選んで、直感的に描画できます。</p>
+      <div id="jsme-wrapper" style="width:100%; height:500px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; position:relative; background:#fff;">
+        <div class="kekule-loading" id="jsme-loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.9); z-index:10; font-size:1.1rem; color:#005bac; font-weight:bold;">⏳ 構造式エディタを読み込み中...</div>
+        <div id="jsme-container" style="width:100%; height:100%;"></div>
       </div>
       <p class="hint">
-        💡 <b>一部を隠す（虫食いにする）には：</b><br>
-        隠したい原子をダブルクリックして、キーボードで「?」と入力すると「?」マークに変更できます。<br>
-        または、左側のツールバーにあるテキスト入力ツール（Aのアイコン）を使って「■」などを構造式の上に配置することも可能です。
+        💡 <b>イオンや特殊文字の入力：</b><br>
+        「+」「-」ボタンを押してから原子をクリックすると上付きのイオンになります。<br>
+        「?」や「R」などの特殊文字は、[X]ボタン（Any atom）や周期表から選ぶことができます。
       </p>
     </div>
 
@@ -355,7 +355,7 @@
        Tab Switching
     ======================================== */
     var currentTab = 'latex';
-    var kekuleLoaded = false;
+    var jsmeLoaded = false;
 
     function switchTab(tabId) {
       document.querySelectorAll('.editor-tab').forEach(function(btn) { btn.classList.remove('active'); });
@@ -368,9 +368,9 @@
       var tabMap = { 'latex': 0, 'structure': 1, 'projection': 2 };
       if (tabMap[tabId] !== undefined) tabs[tabMap[tabId]].classList.add('active');
 
-      // Lazy-load Kekule.js when structure tab is first opened
-      if (tabId === 'structure' && !kekuleLoaded) {
-        loadKekule();
+      // Lazy-load JSME when structure tab is first opened
+      if (tabId === 'structure' && !jsmeLoaded) {
+        loadJSME();
       }
     }
 
@@ -410,44 +410,33 @@
     }
 
     /* ========================================
-       Kekule.js Composer (lazy-loaded)
+       JSME Editor (lazy-loaded)
     ======================================== */
-    function loadKekule() {
-      var loadingDiv = document.getElementById('kekule-loading');
+    function loadJSME() {
+      var loadingDiv = document.getElementById('jsme-loading');
       loadingDiv.style.display = 'flex';
 
-      // Load CSS
-      var link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.jsdelivr.net/npm/kekule@0.9.7/dist/themes/default/kekule.css';
-      document.head.appendChild(link);
-
-      // Load JS
-      var script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/kekule@0.9.7/dist/kekule.min.js';
-      script.onload = function() {
+      window.jsmeOnLoad = function() {
         setTimeout(function() {
           try {
-            initKekuleComposer();
-            kekuleLoaded = true;
+            window.jsmeApplet = new JSApplet.JSME("jsme-container", "100%", "100%", {
+              "options": "newlook,star,zoom"
+            });
+            jsmeLoaded = true;
             loadingDiv.style.display = 'none';
           } catch (e) {
             loadingDiv.innerHTML = '⚠️ 構造式エディタの初期化に失敗しました: ' + e.message;
-            console.error('Kekule init error:', e);
+            console.error('JSME init error:', e);
           }
         }, 100);
       };
+
+      var script = document.createElement('script');
+      script.src = 'https://jsme-editor.github.io/dist/jsme/jsme.nocache.js';
       script.onerror = function() {
         loadingDiv.innerHTML = '❌ ライブラリの読み込みに失敗しました。ネットワーク接続を確認してください。';
       };
       document.head.appendChild(script);
-    }
-
-    function initKekuleComposer() {
-      var area = document.getElementById('kekule-area');
-      var composer = new Kekule.Editor.Composer(area);
-      composer.setDimension('100%', '500px');
-      window.kekuleComposer = composer;
     }
 
     /* ========================================
@@ -810,7 +799,7 @@
       if (currentTab === 'latex') {
         return await latexToBlob();
       } else if (currentTab === 'structure') {
-        return await kekuleToBlob();
+        return await jsmeToBlob();
       } else if (currentTab === 'projection') {
         return await svgPreviewToBlob();
       }
@@ -830,12 +819,11 @@
       return new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
     }
 
-    async function kekuleToBlob() {
-      if (!kekuleLoaded || !window.kekuleComposer) {
+    async function jsmeToBlob() {
+      if (!jsmeLoaded || !window.jsmeApplet) {
         throw new Error('構造式エディタがまだ読み込まれていません。');
       }
-      // Try to find the canvas element inside the composer
-      var wrapper = document.getElementById('kekule-area');
+      var wrapper = document.getElementById('jsme-wrapper');
       var canvas = await html2canvas(wrapper, {
         backgroundColor: '#ffffff',
         scale: 2,
