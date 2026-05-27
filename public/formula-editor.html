@@ -89,6 +89,8 @@
         <button class="tool-btn" onclick="insertLatex('\\text{日本語}')">テキスト</button>
         <button class="tool-btn" onclick="insertLatex('\\blacksquare')">■ (虫食い)</button>
         <button class="tool-btn" onclick="insertLatex('?')">? (虫食い)</button>
+        <button class="tool-btn" onclick="insertLatex(' + Q \\text{ kJ}')">+ Q kJ (発熱)</button>
+        <button class="tool-btn" onclick="insertLatex(' - Q \\text{ kJ}')">- Q kJ (吸熱)</button>
       </div>
 
       <textarea id="latex-input" placeholder="ここにLaTeXを入力してください。&#10;例: \text{H}_2 + \frac{1}{2}\text{O}_2 \rightarrow \text{H}_2\text{O}" oninput="updateLatexPreview()"></textarea>
