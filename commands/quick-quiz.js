@@ -36,11 +36,7 @@ module.exports = {
     const quiz = currentQuizData[randomIndex];
     const startTime = Date.now();
 
-    const thread = await interaction.channel.threads.create({
-      name: `🛎️【${interaction.user.displayName}】早押し部屋`,
-      autoArchiveDuration: 60,
-      type: ChannelType.PublicThread,
-    });
+    // スレッド作成部分は後で try-catch に入れるために削除
 
     const button = new ButtonBuilder()
       .setCustomId(`answer_${quiz.id}_${startTime}`)
@@ -74,7 +70,22 @@ module.exports = {
       }
     }
     
-    await thread.send(messageOptions);
-    await interaction.editReply({ content: `✅ 専用部屋を作成しました！こちらから参加してください ➜ ${thread}` });
+    try {
+      if (!interaction.channel.threads) {
+        await interaction.channel.send(messageOptions);
+        await interaction.editReply({ content: `✅ クイズパネルを作成しました！` });
+      } else {
+        const thread = await interaction.channel.threads.create({
+          name: `🛎️【${interaction.user.displayName}】早押し部屋`,
+          autoArchiveDuration: 60,
+          type: ChannelType.PublicThread,
+        });
+        await thread.send(messageOptions);
+        await interaction.editReply({ content: `✅ 専用部屋を作成しました！こちらから参加してください ➜ ${thread}` });
+      }
+    } catch (e) {
+      console.error(e);
+      await interaction.editReply({ content: '❌ エラーが発生しました。' });
+    }
   },
 };
