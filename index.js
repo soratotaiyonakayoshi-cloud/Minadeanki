@@ -71,6 +71,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
 app.use('/images', express.static(path.join(__dirname, 'images')));
+app.use('/ketcher', express.static(path.join(__dirname, 'public', 'ketcher')));
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) { cb(null, 'images/'); },
