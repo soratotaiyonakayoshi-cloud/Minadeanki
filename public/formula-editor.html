@@ -472,7 +472,6 @@
       renderHaworth();
     });
 
-
     /* ========================================
        Export & Upload Logic
     ======================================== */
@@ -492,8 +491,9 @@
         status.textContent = '⏳ ダッシュボードへ転送中...';
         
         var formData = new FormData();
-        // Since this page is standalone, it talks to the Node.js API endpoint we'll create
-        formData.append('image_file', blob, 'formula.png');
+        var prefix = currentTab === 'latex' ? 'latex' : (currentTab === 'structure' ? 'ketcher' : 'projection');
+        var filename = prefix + '_' + Date.now() + '.png';
+        formData.append('image_file', blob, filename);
 
         var response = await fetch('/api/upload-image-single', { method: 'POST', body: formData });
         var data = await response.json();
@@ -538,16 +538,17 @@
     async function ketcherToBlob() {
       var ketcherFrame = document.getElementById('ketcher-frame');
       if (!ketcherFrame || !ketcherFrame.contentWindow || !ketcherFrame.contentWindow.ketcher) {
-        throw new Error('構造式エディタが読み込み中です。');
+        throw new Error('構造式エディタが読み込み中です');
       }
       var ketcher = ketcherFrame.contentWindow.ketcher;
-      // HTML2Canvasでiframe内部のSVG描画領域をキャプチャする
-      var canvas = await html2canvas(ketcherFrame.contentDocument.body, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        logging: false
-      });
-      return new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+      try {
+        // KetcherのAPIを使って、余白のない綺麗な画像をネイティブに生成する
+        var rxn = await ketcher.getRxn();
+        var blob = await ketcher.generateImage(rxn, { outputFormat: 'png', backgroundColor: '255, 255, 255' });
+        return blob;
+      } catch (e) {
+        throw new Error('構造式が描画されていないか、エクスポートに失敗しました。');
+      }
     }
 
     async function svgPreviewToBlob() {
