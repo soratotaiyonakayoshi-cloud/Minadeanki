@@ -45,75 +45,80 @@ module.exports = {
       status: 'setup'
     });
 
-    const modeMenu = new StringSelectMenuBuilder()
-      .setCustomId('gameSetup_mode')
-      .setPlaceholder('🎮 ゲームモードを選択')
-      .addOptions([
-        { label: '🏆 通常スコアモード（早押し高得点）', value: 'normal', default: true },
-        { label: '💀 サバイバルモード（ライフ制ノックアウト）', value: 'survival' },
-        { label: '🎲 ベッティングモード（100点先取・賭けクイズ）', value: 'betting' }
-      ]);
+    try {
+      const modeMenu = new StringSelectMenuBuilder()
+        .setCustomId('gameSetup_mode')
+        .setPlaceholder('🎮 ゲームモードを選択')
+        .addOptions([
+          { label: '🏆 通常スコアモード（早押し高得点）', value: 'normal', default: true },
+          { label: '💀 サバイバルモード（ライフ制ノックアウト）', value: 'survival' },
+          { label: '🎲 ベッティングモード（100点先取・賭けクイズ）', value: 'betting' }
+        ]);
 
-    const genreMenu = new StringSelectMenuBuilder()
-      .setCustomId('gameSetup_genre')
-      .setPlaceholder('🎯 出題ジャンルを選んでください')
-      .addOptions([
-        { label: '全範囲（ランダム）', value: 'all', default: true }
-      ]);
+      const genreMenu = new StringSelectMenuBuilder()
+        .setCustomId('gameSetup_genre')
+        .setPlaceholder('🎯 出題ジャンルを選んでください')
+        .addOptions([
+          { label: '全範囲（ランダム）', value: 'all', default: true }
+        ]);
 
-    // ⏱️ 動的メニュー生成（ダッシュボードで変な数字が設定されても対応可能！）
-    // ⏱️ 制限時間の選択肢を豊富にしておく
-const timeOptions = [
-  { label: '瞬発力特化！ (5秒)', value: '5' },
-  { label: '少し早め (10秒)', value: '10' },
-  { label: '標準モード (15秒)', value: '15' },
-  { label: '少し長め (20秒)', value: '20' },
-  { label: 'じっくり思考 (30秒)', value: '30' },
-  { label: '超長考 (60秒)', value: '60' }
-];
-    if (![5, 15, 30].includes(defaultTime)) {
-      timeOptions.push({ label: `⚙️ カスタム設定 (${defaultTime}秒)`, value: String(defaultTime) });
+      // ⏱️ 動的メニュー生成（ダッシュボードで変な数字が設定されても対応可能！）
+      // ⏱️ 制限時間の選択肢を豊富にしておく
+      const timeOptions = [
+        { label: '瞬発力特化！ (5秒)', value: '5' },
+        { label: '少し早め (10秒)', value: '10' },
+        { label: '標準モード (15秒)', value: '15' },
+        { label: '少し長め (20秒)', value: '20' },
+        { label: 'じっくり思考 (30秒)', value: '30' },
+        { label: '超長考 (60秒)', value: '60' }
+      ];
+      if (!timeOptions.some(opt => opt.value === String(defaultTime))) {
+        timeOptions.push({ label: `⚙️ カスタム設定 (${defaultTime}秒)`, value: String(defaultTime) });
+      }
+      timeOptions.forEach(opt => opt.default = (opt.value === String(defaultTime)));
+
+      const timeMenu = new StringSelectMenuBuilder()
+        .setCustomId('gameSetup_time')
+        .setPlaceholder('⏱️ 1問あたりの制限時間')
+        .addOptions(timeOptions);
+
+      // 🏆 動的メニュー生成（問題数）
+      const ruleOptions = [
+        { label: 'サクッと (3問)', value: '3' },
+        { label: '標準 (5問)', value: '5' },
+        { label: '少し長め (7問)', value: '7' },
+        { label: 'ガチ勉強会 (10問)', value: '10' },
+        { label: '耐久レース (20問)', value: '20' }
+      ];
+      if (!ruleOptions.some(opt => opt.value === String(defaultCount))) {
+        ruleOptions.push({ label: `⚙️ カスタム設定 (${defaultCount}問)`, value: String(defaultCount) });
+      }
+      ruleOptions.forEach(opt => opt.default = (opt.value === String(defaultCount)));
+
+      const ruleMenu = new StringSelectMenuBuilder()
+        .setCustomId('gameSetup_rule')
+        .setPlaceholder('🏆 勝利条件・問題数')
+        .addOptions(ruleOptions);
+
+      const startButton = new ButtonBuilder()
+        .setCustomId('gameSetup_start')
+        .setLabel('🚀 この設定でゲームスタート！')
+        .setStyle(ButtonStyle.Success);
+
+      const row0 = new ActionRowBuilder().addComponents(modeMenu);
+      const row1 = new ActionRowBuilder().addComponents(genreMenu);
+      const row2 = new ActionRowBuilder().addComponents(timeMenu);
+      const row3 = new ActionRowBuilder().addComponents(ruleMenu);
+      const row4 = new ActionRowBuilder().addComponents(startButton);
+
+      // deferReply を使ったので、editReply で送信する
+      await interaction.editReply({
+        content: `⚙️ **【クイズゲームカスタムロビー】**\nお好みのルールにカスタマイズして「スタート」を押してください！\n\n🔹 **現在の設定（ダッシュボード初期値）：**\n・モード: \`🏆 通常スコア\`\n・ジャンル: \`全範囲\`\n・制限時間: \`${defaultTime}秒\`\n・勝利条件: \`${defaultCount}問終了時に最高得点\``,
+        components: [row0, row1, row2, row3, row4]
+      });
+    } catch (e) {
+      console.error('ロビー作成中にエラーが発生しました:', e);
+      await interaction.editReply({ content: '❌ メニューの生成中にエラーが発生しました。設定値を確認してください。' }).catch(() => {});
     }
-    timeOptions.forEach(opt => opt.default = (opt.value === String(defaultTime)));
-
-    const timeMenu = new StringSelectMenuBuilder()
-      .setCustomId('gameSetup_time')
-      .setPlaceholder('⏱️ 1問あたりの制限時間')
-      .addOptions(timeOptions);
-
-    // 🏆 動的メニュー生成（問題数）
-   const ruleOptions = [
-  { label: 'サクッと (3問)', value: '3' },
-  { label: '標準 (5問)', value: '5' },
-  { label: '少し長め (7問)', value: '7' },
-  { label: 'ガチ勉強会 (10問)', value: '10' },
-  { label: '耐久レース (20問)', value: '20' }
-];
-    if (![3, 5, 10].includes(defaultCount)) {
-      ruleOptions.push({ label: `⚙️ カスタム設定 (${defaultCount}問)`, value: String(defaultCount) });
-    }
-    ruleOptions.forEach(opt => opt.default = (opt.value === String(defaultCount)));
-
-    const ruleMenu = new StringSelectMenuBuilder()
-      .setCustomId('gameSetup_rule')
-      .setPlaceholder('🏆 勝利条件・問題数')
-      .addOptions(ruleOptions);
-
-    const startButton = new ButtonBuilder()
-      .setCustomId('gameSetup_start')
-      .setLabel('🚀 この設定でゲームスタート！')
-      .setStyle(ButtonStyle.Success);
-
-    const row0 = new ActionRowBuilder().addComponents(modeMenu);
-    const row1 = new ActionRowBuilder().addComponents(genreMenu);
-    const row2 = new ActionRowBuilder().addComponents(timeMenu);
-    const row3 = new ActionRowBuilder().addComponents(ruleMenu);
-    const row4 = new ActionRowBuilder().addComponents(startButton);
-
-    // deferReply を使ったので、editReply で送信する
-    await interaction.editReply({
-      content: `⚙️ **【クイズゲームカスタムロビー】**\nお好みのルールにカスタマイズして「スタート」を押してください！\n\n🔹 **現在の設定（ダッシュボード初期値）：**\n・モード: \`🏆 通常スコア\`\n・ジャンル: \`全範囲\`\n・制限時間: \`${defaultTime}秒\`\n・勝利条件: \`${defaultCount}問終了時に最高得点\``,
-      components: [row0, row1, row2, row3, row4]
-    });
   },
 };
