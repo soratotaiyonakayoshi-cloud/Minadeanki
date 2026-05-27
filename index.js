@@ -938,13 +938,19 @@ app.get('/csv-generator', (req, res) => {
             <input type="hidden" id="g_exp_img_filename" value="">
 
             <div class="form-group">
-              <label>🖼️ クイズ用の問題画像 (任意)</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <label style="margin:0;">🖼️ クイズ用の問題画像 (任意)</label>
+                <button type="button" onclick="openImagePool('g_img_filename')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ プールから選ぶ</button>
+              </div>
               <input type="file" id="g_img_file" class="form-control" accept="image/*" onchange="uploadImageAsync('image_file')">
               <div id="g_img_status" class="img-status">未選択</div>
             </div>
             
             <div class="form-group">
-              <label>💡 正解発表・解説時の画像 (任意)</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <label style="margin:0;">💡 正解発表・解説時の画像 (任意)</label>
+                <button type="button" onclick="openImagePool('g_exp_img_filename')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ プールから選ぶ</button>
+              </div>
               <input type="file" id="g_exp_img_file" class="form-control" accept="image/*" onchange="uploadImageAsync('exp_image_file')">
               <div id="g_exp_img_status" class="img-status">未選択</div>
             </div>
@@ -1020,7 +1026,17 @@ app.get('/csv-generator', (req, res) => {
         }
         function closeImagePool() { document.getElementById('image-pool-modal').style.display = 'none'; }
         function selectImageFromPool(url) {
-          if (currentPoolTargetId) { document.getElementById(currentPoolTargetId).value = url; }
+          if (currentPoolTargetId) { 
+            document.getElementById(currentPoolTargetId).value = url; 
+            // 選択状態をステータステキストに反映
+            if (currentPoolTargetId === 'g_img_filename') {
+              document.getElementById('g_img_status').className = 'img-status success';
+              document.getElementById('g_img_status').textContent = '✅ プールから画像を選択しました';
+            } else if (currentPoolTargetId === 'g_exp_img_filename') {
+              document.getElementById('g_exp_img_status').className = 'img-status success';
+              document.getElementById('g_exp_img_status').textContent = '✅ プールから画像を選択しました';
+            }
+          }
           closeImagePool();
         }
 
