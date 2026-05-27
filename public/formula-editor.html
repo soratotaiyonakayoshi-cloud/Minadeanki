@@ -537,18 +537,102 @@
 
     async function ketcherToBlob() {
       var ketcherFrame = document.getElementById('ketcher-frame');
-      if (!ketcherFrame || !ketcherFrame.contentWindow || !ketcherFrame.contentWindow.ketcher) {
-        throw new Error('構造式エディタが読み込み中です');
+      if (!ketcherFrame) {
+        throw new Error('構造式エディタが読み込み中です。');
       }
-      var ketcher = ketcherFrame.contentWindow.ketcher;
+
+      var ketcherDoc;
       try {
-        // KetcherのAPIを使って、余白のない綺麗な画像をネイティブに生成する
-        var rxn = await ketcher.getRxn();
-        var blob = await ketcher.generateImage(rxn, { outputFormat: 'png', backgroundColor: '255, 255, 255' });
-        return blob;
+        ketcherDoc = ketcherFrame.contentDocument || ketcherFrame.contentWindow.document;
       } catch (e) {
-        throw new Error('構造式が描画されていないか、エクスポートに失敗しました。');
+        throw new Error('構造式エディタにアクセスできません。');
       }
+
+      // Ketcher v2 のキャンバス内SVGを探す
+      var svgElement = ketcherDoc.querySelector('svg.canvas');
+      if (!svgElement) {
+        svgElement = ketcherDoc.querySelector('svg[class*="canvas"]');
+      }
+      if (!svgElement) {
+        // フォールバック: 一番大きいSVGを使う
+        var allSvgs = ketcherDoc.querySelectorAll('svg');
+        var maxArea = 0;
+        for (var i = 0; i < allSvgs.length; i++) {
+          var rect = allSvgs[i].getBoundingClientRect();
+          var area = rect.width * rect.height;
+          if (area > maxArea) { maxArea = area; svgElement = allSvgs[i]; }
+        }
+      }
+      if (!svgElement) {
+        throw new Error('構造式エディタのキャンバスが見つかりません。');
+      }
+
+      // 描画された要素のバウンディングボックスを計算してクリッピング
+      var drawnElements = svgElement.querySelectorAll('path, line, circle, text, polygon, polyline, ellipse, rect');
+      if (drawnElements.length === 0) {
+        throw new Error('構造式が描画されていません。何か描いてからエクスポートしてください。');
+      }
+
+      var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      drawnElements.forEach(function(el) {
+        try {
+          var bbox = el.getBBox();
+          if (bbox.width === 0 && bbox.height === 0) return;
+          if (bbox.x < minX) minX = bbox.x;
+          if (bbox.y < minY) minY = bbox.y;
+          if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
+          if (bbox.y + bbox.height > maxY) maxY = bbox.y + bbox.height;
+        } catch(e) { /* getBBox can fail on hidden elements */ }
+      });
+
+      if (minX === Infinity) {
+        throw new Error('構造式が描画されていません。何か描いてからエクスポートしてください。');
+      }
+
+      // 余白を少し追加
+      var padding = 20;
+      minX -= padding; minY -= padding;
+      maxX += padding; maxY += padding;
+      var cropW = maxX - minX;
+      var cropH = maxY - minY;
+
+      // SVGをクローンしてviewBoxをクリッピング範囲に設定
+      var clonedSvg = svgElement.cloneNode(true);
+      clonedSvg.setAttribute('viewBox', minX + ' ' + minY + ' ' + cropW + ' ' + cropH);
+      clonedSvg.setAttribute('width', cropW * 2);
+      clonedSvg.setAttribute('height', cropH * 2);
+      // 背景色を白に
+      var bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bgRect.setAttribute('x', minX);
+      bgRect.setAttribute('y', minY);
+      bgRect.setAttribute('width', cropW);
+      bgRect.setAttribute('height', cropH);
+      bgRect.setAttribute('fill', '#ffffff');
+      clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
+
+      var svgData = new XMLSerializer().serializeToString(clonedSvg);
+      var svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(svgBlob);
+
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          canvas.toBlob(function(blob) { resolve(blob); }, 'image/png');
+        };
+        img.onerror = function() {
+          URL.revokeObjectURL(url);
+          reject(new Error('画像の変換に失敗しました。'));
+        };
+        img.src = url;
+      });
     }
 
     async function svgPreviewToBlob() {
