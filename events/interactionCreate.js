@@ -1,7 +1,9 @@
+const path = require('node:path');
+const fs = require('node:fs');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
 const { OpenAI } = require('openai');
-const { ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType, StringSelectMenuBuilder } = require('discord.js');
+const { ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, ChannelType, StringSelectMenuBuilder, EmbedBuilder } = require('discord.js');
 
 // 🌐 設定エリア（環境変数から読み込むように変更！）
 const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
@@ -52,6 +54,21 @@ function shuffleArray(array) {
   return array;
 }
 
+function setEmbedImage(embed, imageName, filesArray, attachmentName = 'quiz_image.png') {
+  if (!imageName) return;
+  if (imageName.startsWith('http')) {
+    embed.setImage(imageName);
+  } else {
+    const imagePath = path.join(__dirname, '..', 'images', imageName);
+    if (fs.existsSync(imagePath)) {
+      filesArray.push(new AttachmentBuilder(imagePath, { name: attachmentName }));
+      embed.setImage(`attachment://${attachmentName}`);
+    } else {
+      console.log(`⚠️ 画像が見つかりません: ${imagePath}`);
+    }
+  }
+}
+
 // 出題関数（ハブ）
 async function sendGameQuestion(thread, gameData) {
   gameData.roundProcessing = false; 
@@ -78,19 +95,22 @@ async function sendGameQuestion(thread, gameData) {
 
   let modeInfo = gameData.mode === 'survival' ? `❤️ あなたの残りライフに注意！` : `🏆 早押し高得点チャンス！`;
   
-  // 🌟 GoogleドライブのURLはEmbedに直接セット（プロキシ不要）
-  const imageEmbed = currentQuiz.image && currentQuiz.image.startsWith('http') ? currentQuiz.image : null;
-  const imageContent = imageEmbed ? `\n\n🖼️ **【画像問題】**` : '';
+  const hasImage = !!currentQuiz.image;
+  const imageContent = hasImage ? `\n\n🖼️ **【画像問題】**` : '';
 
   const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / 全 ${gameData.maxQuestions} 問**\n⏱️ 制限時間: **${gameData.timeLimit}秒** ➜ [${gameData.mode === 'survival' ? 'サバイバルモード' : '通常スコアモード'}]\n━━━━━━━━━━━━━━━━━━━━━━━━\n${modeInfo}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
   };
 
-  if (imageEmbed) {
-    const { EmbedBuilder } = require('discord.js');
-    const imgEmbed = new EmbedBuilder().setImage(imageEmbed);
+  if (hasImage) {
+    const imgEmbed = new EmbedBuilder();
+    const files = [];
+    setEmbedImage(imgEmbed, currentQuiz.image, files, 'quiz_image.png');
     sendOptions.embeds = [imgEmbed];
+    if (files.length > 0) {
+      sendOptions.files = files;
+    }
   }
 
   try {
@@ -99,7 +119,8 @@ async function sendGameQuestion(thread, gameData) {
   } catch (error) {
     console.error('画像送信エラー:', error);
     delete sendOptions.files;
-    sendOptions.content += '\n\n⚠️ *(※画像のURLが読み込めなかったため、画像なしで出題しました)*';
+    delete sendOptions.embeds;
+    sendOptions.content += '\n\n⚠️ *(※画像の読み込みまたは送信ができなかったため、画像なしで出題しました)*';
     const fallbackMsg = await thread.send(sendOptions).catch(e => console.log(e));
     if (fallbackMsg) gameData.currentMessage = fallbackMsg;
   }
@@ -165,19 +186,22 @@ async function exposeBettingQuestion(thread, gameData) {
   const row = new ActionRowBuilder().addComponents(buttons);
   gameData.roundStartTime = Date.now();
 
-  // 🌟 GoogleドライブのURLはEmbedに直接セット（プロキシ不要）
-  const imageEmbed = currentQuiz.image && currentQuiz.image.startsWith('http') ? currentQuiz.image : null;
-  const imageContent = imageEmbed ? `\n\n🖼️ **【画像問題】**` : '';
+  const hasImage = !!currentQuiz.image;
+  const imageContent = hasImage ? `\n\n🖼️ **【画像問題】**` : '';
 
   const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / クイズオープン！**\n⏱️ 制限時間: **${gameData.timeLimit}秒**\n━━━━━━━━━━━━━━━━━━━━━━━━\n${betStatusText}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
   };
 
-  if (imageEmbed) {
-    const { EmbedBuilder } = require('discord.js');
-    const imgEmbed = new EmbedBuilder().setImage(imageEmbed);
+  if (hasImage) {
+    const imgEmbed = new EmbedBuilder();
+    const files = [];
+    setEmbedImage(imgEmbed, currentQuiz.image, files, 'quiz_image.png');
     sendOptions.embeds = [imgEmbed];
+    if (files.length > 0) {
+      sendOptions.files = files;
+    }
   }
 
   try {
@@ -186,7 +210,8 @@ async function exposeBettingQuestion(thread, gameData) {
   } catch (error) {
     console.error('画像送信エラー:', error);
     delete sendOptions.files;
-    sendOptions.content += '\n\n⚠️ *(※画像のURLが読み込めなかったため、画像なしで出題しました)*';
+    delete sendOptions.embeds;
+    sendOptions.content += '\n\n⚠️ *(※画像の読み込みまたは送信ができなかったため、画像なしで出題しました)*';
     const fallbackMsg = await thread.send(sendOptions).catch(e => console.log(e));
     if (fallbackMsg) gameData.currentMessage = fallbackMsg;
   }
@@ -255,7 +280,29 @@ async function endRound(thread, gameData) {
     }
   }
 
-  await thread.send(resultText).catch(() => {});
+  const resultEmbed = new EmbedBuilder()
+    .setTitle('📝 ラウンド結果発表')
+    .setDescription(resultText)
+    .setColor('#009944');
+
+  if (gameData.mode === 'survival' || gameData.mode === 'betting') {
+    if (currentQuiz.explanation) {
+      resultEmbed.addFields({ name: '💡 解説', value: currentQuiz.explanation });
+    }
+  }
+
+  const files = [];
+  const targetImage = currentQuiz.exp_image || currentQuiz.image;
+  if (targetImage) {
+    setEmbedImage(resultEmbed, targetImage, files, 'exp_image.png');
+  }
+
+  const resultOptions = { embeds: [resultEmbed] };
+  if (files.length > 0) {
+    resultOptions.files = files;
+  }
+
+  await thread.send(resultOptions).catch(() => {});
 
   gameData.currentRound++;
   if (gameData.currentRound < gameData.maxQuestions) {
@@ -317,7 +364,18 @@ module.exports = {
       const currentQuizData = await getQuizDataFromSheets(); const quiz = currentQuizData.find(q => q.id === quizId);
       if (quiz) {
         if (formatText(playerAnswer) === formatText(quiz.answer)) {
-          await interaction.update({ content: `📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🎉 **正解！**\n🛎️ **${interaction.user.displayName}** さんが **${timeDiff}秒** で見事正解しました！\n\n🎯 **【答え】** ${quiz.answer}\n\n💡 **【解説】**\n${quiz.explanation}`, components: [] });
+          const embed = new EmbedBuilder()
+            .setTitle(`🎯 早押しクイズ正解発表！`)
+            .setDescription(`📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🎉 **正解！**\n🛎️ **${interaction.user.displayName}** さんが **${timeDiff}秒** で見事正解しました！\n\n🎯 **【答え】** ${quiz.answer}\n\n💡 **【解説】**\n${quiz.explanation || 'なし'}`)
+            .setColor('#009944');
+
+          const files = [];
+          const targetImage = quiz.exp_image || quiz.image;
+          if (targetImage) {
+            setEmbedImage(embed, targetImage, files, 'exp_image.png');
+          }
+
+          await interaction.update({ embeds: [embed], components: [], files: files, content: null });
         } else {
           await interaction.reply({ content: `❌ **${interaction.user.displayName}** さん、残念！「${playerAnswer}」は不正解です！` });
         }
@@ -329,7 +387,18 @@ module.exports = {
       const currentQuizData = await getQuizDataFromSheets(); const quiz = currentQuizData.find(q => q.id === quizId);
       if (quiz) {
         if (correctIndex === myIndex) {
-          await interaction.update({ content: `📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🎉 **正解！**\n🛎️ **${interaction.user.displayName}** さんが、見事 **${quiz.answer}** を選択して正解しました！\n\n💡 **【解説】**\n${quiz.explanation}`, components: [] });
+          const embed = new EmbedBuilder()
+            .setTitle('🎯 クイズ正解発表！')
+            .setDescription(`📝 **【問題】** [${quiz.genre}] (難易度: ${quiz.difficulty})\n${quiz.question}\n\n🎉 **正解！**\n🛎️ **${interaction.user.displayName}** さんが、見事 **${quiz.answer}** を選択して正解しました！\n\n💡 **【解説】**\n${quiz.explanation || 'なし'}`)
+            .setColor('#009944');
+
+          const files = [];
+          const targetImage = quiz.exp_image || quiz.image;
+          if (targetImage) {
+            setEmbedImage(embed, targetImage, files, 'exp_image.png');
+          }
+
+          await interaction.update({ embeds: [embed], components: [], files: files, content: null });
         } else {
           await interaction.reply({ content: `❌ **${interaction.user.displayName}** さん、残念！不正解です！`, flags: 64 });
         }
