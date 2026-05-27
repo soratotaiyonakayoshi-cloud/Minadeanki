@@ -476,6 +476,8 @@ app.get('/', async (req, res) => {
               btn.style.display = 'none';
             }
           }
+        </script>
+
       <!-- 画像プールモーダル -->
       <div id="image-pool-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
         <div style="background:#fff; width:90%; max-width:800px; max-height:85vh; border-radius:12px; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
