@@ -102,417 +102,365 @@ app.get('/', async (req, res) => {
       axios.get(`${GAS_WEB_APP_URL}?action=getSettings&t=${Date.now()}`)
     ]);
 
-    const allQuizData = parse(csvResponse.data, { columns: true, skip_empty_lines: true });
-    const currentSettings = settingsResponse.data || { playTime: 20, questionCount: 5 };
-    
-    const uniqueGenres = Array.from(new Set(allQuizData.map(q => q.genre || '未分類')));
-    let tabsHtml = `<button class="tab-btn active" onclick="filterCards('すべて', this)">すべて</button>`;
-    for (const genre of uniqueGenres) {
-      tabsHtml += `<button class="tab-btn" onclick="filterCards('${genre}', this)">${genre}</button>`;
-    }
+    const csvData = csvResponse.data;
+    const records = parse(csvData, { columns: true, skip_empty_lines: true });
 
-    const editId = req.query.edit_id || null;
+    let settings = { playTime: 20, questionCount: 5 };
+    if (settingsResponse.data) settings = settingsResponse.data;
 
-    let quizCardsHtml = '';
-    for (const quiz of allQuizData) {
-      const quizId = quiz.id || '-';
-      const currentGenre = quiz.genre || '未分類';
-
-      if (editId && quizId.toString() === editId.toString()) {
-        quizCardsHtml += `
-          <div class="quiz-card editing-card" data-genre="${currentGenre}">
-            <span class="id-badge"># ${quizId} を編集中</span>
-            <form action="/edit-quiz" method="POST" enctype="multipart/form-data" style="margin-top: 1rem;">
-              <input type="hidden" name="id" value="${quizId}">
-              <input type="hidden" name="old_image" value="${quiz.image || ''}">
-              <input type="hidden" name="old_exp_image" value="${quiz.exp_image || ''}">
-              
-              <div class="form-row">
-                <div class="form-group"> <label>🏷️ ジャンル（大区分）</label> <input type="text" name="genre" class="form-control" value="${quiz.genre || ''}" required> </div>
-                <div class="form-group"> <label>📂 小区分（単元名など）</label> <input type="text" name="sub_genre" class="form-control" value="${quiz.sub_genre || ''}" placeholder="例: αアミノ酸"> </div>
-                <div class="form-group"> <label>⭐ 難易度</label> <input type="number" name="difficulty" class="form-control" min="1" max="5" value="${quiz.difficulty || 1}" required> </div>
-              </div>
-              <div class="form-group"> <label>❓ 問題文</label> <textarea name="question" class="form-control" rows="3" required>${quiz.question || ''}</textarea> </div>
-              <div class="form-group"> <label>✅ 正解</label> <input type="text" name="answer" class="form-control" value="${quiz.answer || ''}" required> </div>
-              <div class="form-group"> <label>💡 解説（任意）</label> <textarea name="explanation" class="form-control" rows="2">${quiz.explanation || ''}</textarea> </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label>🖼️ 問題画像の変更</label>
-                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                    <button type="button" onclick="openImagePool('edit_image_url_${quizId}')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
-                  </div>
-                  <input type="text" id="edit_image_url_${quizId}" name="image_url" class="form-control" placeholder="新しい画像URL (入力または選択)" style="margin-bottom:0.5rem;">
-                  <input type="file" name="image_file" class="form-control" accept="image/*">
-                  <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下（ファイルを選択した場合はURLより優先されます）</div>
-                </div>
-                <div class="form-group">
-                  <label>💡 解説画像の変更</label>
-                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                    <button type="button" onclick="openImagePool('edit_exp_image_url_${quizId}')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
-                  </div>
-                  <input type="text" id="edit_exp_image_url_${quizId}" name="exp_image_url" class="form-control" placeholder="新しい画像URL (入力または選択)" style="margin-bottom:0.5rem;">
-                  <input type="file" name="exp_image_file" class="form-control" accept="image/*">
-                  <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div>
-                </div>
-              </div>
-
-              <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-                <button type="submit" class="save-btn">💾 上書き保存</button>
-                <a href="/" class="cancel-btn">キャンセル</a>
-              </div>
-            </form>
-          </div>
-        `;
-      } else {
-        quizCardsHtml += `
-          <div class="quiz-card" data-genre="${currentGenre}">
-            <div class="card-header-tags">
-              <input type="checkbox" class="quiz-select-checkbox" value="${quizId}" onchange="updateBulkDeleteButton()">
-              <span class="id-badge"># ${quizId}</span>
-              <span class="genre-badge">${quiz.genre || 'ジャンルなし'}</span>
-              ${quiz.sub_genre ? `<span class="sub-genre-badge">📂 ${quiz.sub_genre}</span>` : ''}
-              <span class="diff-badge">⭐ ${quiz.difficulty || '1'}</span>
-            </div>
-            <h3>Q. ${quiz.question}</h3>
-            <p><strong>A.</strong> <span class="answer">${quiz.answer}</span></p>
-            ${quiz.explanation ? `<p class="explanation">💡 ${quiz.explanation}</p>` : ''}
-            
-            <div style="margin-top: 0.5rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px;">
-              ${quiz.image ? `<p class="has-image" style="margin:0;">🖼️ 問題画像: ${quiz.image}</p>` : ''}
-              ${quiz.exp_image ? `<p class="has-image" style="margin:0; color:#009944;">💡 解説画像: ${quiz.exp_image}</p>` : ''}
-            </div>
-            
-            <div class="card-actions">
-              <a href="/?edit_id=${quizId}" class="edit-link-btn">✏️ 編集</a>
-              <form action="/delete-quiz" method="POST" onsubmit="return confirm('本当にこのクイズを削除してもよろしいですか？');" style="margin:0;">
-                <input type="hidden" name="id" value="${quizId}">
-                <button type="submit" class="delete-btn">🗑️ 削除</button>
-              </form>
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    res.send(`
+    let html = `
       <!DOCTYPE html>
       <html lang="ja">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>みんなで暗記！ TUATダッシュボード</title>
+        <title>クイズBot ダッシュボード</title>
         <style>
-          body { 
-            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Segoe UI', sans-serif; 
-            margin: 0; padding: 2rem; line-height: 1.6;
-            background: linear-gradient(135deg, #005bac 0%, #009944 100%);
-            color: #222222; position: relative; overflow-x: hidden; min-height: 100vh;
-          }
-          .bg-shapes { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0;
-          }
-          .shape { 
-            position: absolute; display: block; list-style: none; 
-            background: rgba(255, 255, 255, 0.35); 
-            animation: float 22s linear infinite; bottom: -150px; 
-          }
-          .shape:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
-          .shape:nth-child(2) { left: 10%; width: 30px; height: 30px; animation-delay: 2s; animation-duration: 12s; border-radius: 50%; }
-          .shape:nth-child(3) { left: 70%; width: 25px; height: 25px; animation-delay: 4s; }
-          .shape:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; border-radius: 50%; }
-          .shape:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
-          .shape:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
-          .shape:nth-child(7) { left: 35%; width: 130px; height: 130px; animation-delay: 7s; }
-          .shape:nth-child(8) { left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
-          .shape:nth-child(9) { left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; border-radius: 50%; }
-          .shape:nth-child(10) { left: 85%; width: 140px; height: 140px; animation-delay: 0s; animation-duration: 11s; }
-
-          @keyframes float {
-            0% { transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 10%; }
-            100% { transform: translateY(-1000px) rotate(540deg); opacity: 0; border-radius: 50%; }
-          }
-
-          .container { 
-            max-width: 1200px; margin: 0 auto; 
-            background: rgba(255, 255, 255, 0.88); 
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            padding: 2.5rem; border-radius: 20px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15); position: relative; z-index: 1; 
-          }
+          /* （長いので省略せずにすべてを含める必要がありますが、ここでは省略形を使わずに書き出します） */
+          body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; margin: 0; padding: 2rem; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; }
+          .container { max-width: 1200px; margin: 0 auto; background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 2.5rem; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+          h1 { color: #38bdf8; text-align: center; font-size: 2.5rem; margin-bottom: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 2px; }
+          .header-buttons { display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; }
+          .btn { display: inline-block; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: bold; text-decoration: none; color: #ffffff; background: linear-gradient(to right, #3b82f6, #2563eb); border: none; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+          .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); }
+          .btn-green { background: linear-gradient(to right, #10b981, #059669); }
+          .btn-red { background: linear-gradient(to right, #ef4444, #dc2626); }
+          .btn-outline { background: transparent; border: 2px solid #38bdf8; color: #38bdf8; }
+          .btn-outline:hover { background: rgba(56, 189, 248, 0.1); }
+          .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+          .modal-content { background: #1e293b; padding: 2.5rem; border-radius: 24px; width: 90%; max-width: 600px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); max-height: 90vh; overflow-y: auto; }
+          .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; }
+          .modal-header h2 { margin: 0; color: #f8fafc; font-size: 1.5rem; }
+          .close { color: #94a3b8; font-size: 28px; font-weight: bold; cursor: pointer; transition: color 0.2s; }
+          .close:hover { color: #f8fafc; }
+          .form-group { margin-bottom: 1.5rem; }
+          .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #cbd5e1; }
+          .form-control { width: 100%; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 1rem; background: rgba(15, 23, 42, 0.5); color: #f8fafc; box-sizing: border-box; transition: border-color 0.2s; }
+          .form-control:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); }
+          .image-input-group { display: flex; gap: 0.5rem; }
+          .image-input-group .form-control { flex-grow: 1; }
+          .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
+          .file-input-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
+          .table-container { overflow-x: auto; margin-top: 2rem; background: rgba(15, 23, 42, 0.5); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); }
+          table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+          th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+          th { background-color: rgba(56, 189, 248, 0.1); color: #38bdf8; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; position: sticky; top: 0; }
+          tr:hover { background-color: rgba(255,255,255,0.02); }
+          .table-image { max-width: 80px; max-height: 80px; border-radius: 4px; object-fit: cover; transition: transform 0.2s; cursor: pointer; }
+          .table-image:hover { transform: scale(2); position: relative; z-index: 10; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
+          .action-buttons { display: flex; gap: 0.5rem; }
           
-          .header { text-align: center; margin-bottom: 2rem; }
-          h1 { font-size: 2.8rem; background: linear-gradient(to right, #005bac, #009944); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; letter-spacing: 1px; font-weight: 800; }
-          .header p { color: #445566; font-size: 1.1rem; font-weight: bold; }
-          
-          .settings-accordion {
-            max-width: 600px; margin: 0 auto 1.5rem auto; background: rgba(255, 255, 255, 0.95); border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #005bac; overflow: hidden;
+          .image-pool-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto;
+            padding: 10px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin-top: 10px;
           }
-          .accordion-toggle {
-            padding: 1rem 1.5rem; font-weight: bold; color: #005bac;
-            cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;
+          .image-pool-item {
+            background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
           }
-          .accordion-toggle::after { content: '▼'; font-size: 0.8rem; transition: transform 0.2s; }
-          .settings-accordion.open .accordion-toggle::after { transform: rotate(180deg); }
-          .accordion-content {
-            padding: 0 1.5rem 1.5rem 1.5rem; display: none; border-top: 1px solid #f1f5f9;
-          }
-          .settings-accordion.open .accordion-content { display: block; }
-          
-          .csv-panel { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #005bac; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 1.5rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); }
-          .csv-panel h3 { margin-top: 0; font-size: 1.3rem; color: #005bac; display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; }
-          .csv-panel p { font-size: 0.9rem; color: #556677; margin-bottom: 1.5rem; margin-top: 0; }
-          .csv-flex { display: flex; flex-direction: column; gap: 15px; }
-          .csv-form { display: flex; flex-direction: column; gap: 6px; margin: 0; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1; }
-          .csv-input { padding: 6px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-          .csv-btn { background: #005bac; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
-          .csv-btn:hover { background: #004480; }
-          .csv-dl-link { text-align: center; display: block; text-decoration: none; background: #fff; color: #64748b; border: 1px dashed #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s; }
-          .csv-dl-link:hover { background: #f1f5f9; color: #1e293b; }
-          
-          .csv-maker-link { 
-            display: block; text-decoration: none; background: #009944; color: white; 
-            padding: 1.2rem; border-radius: 10px; font-size: 1.2rem; font-weight: bold; 
-            text-align: center; box-shadow: 0 6px 20px rgba(0, 153, 68, 0.3); 
-            transition: all 0.2s; border: none;
-          }
-          .csv-maker-link:hover { background: #007a36; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 153, 68, 0.4); }
+          .image-pool-item:hover { border-color: #38bdf8; transform: translateY(-2px); }
+          .image-pool-item img { max-width: 100%; max-height: 100px; object-fit: contain; }
+          .image-pool-date { font-size: 0.7rem; color: #94a3b8; text-align: center; margin-top: 5px; }
 
-          .form-container { background: rgba(255, 255, 255, 0.95); border-top: 6px solid #009944; padding: 2rem; border-radius: 12px; max-width: 600px; margin: 0 auto 3rem auto; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
-          .form-container h2 { margin-top: 0; font-size: 1.4rem; color: #009944; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.8rem; margin-bottom: 1.5rem; }
-          .form-group { margin-bottom: 1.2rem; }
-          .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #3b4a5a; font-size: 0.95rem; }
-          .form-control { width: 100%; padding: 0.75rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; color: #222222; font-size: 1rem; box-sizing: border-box; transition: all 0.2s; }
-          .form-control:focus { outline: none; border-color: #009944; box-shadow: 0 0 0 3px rgba(0, 153, 68, 0.15); background: #ffffff; }
-          .form-row { display: flex; gap: 1rem; }
-          .form-row .form-group { flex: 1; }
-          
-          .submit-btn { width: 100%; padding: 1rem; background: #009944; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1rem; box-shadow: 0 4px 10px rgba(0, 153, 68, 0.2); }
-          .submit-btn:hover { background: #007a36; }
-          .settings-save-btn { width: 100%; padding: 0.8rem; background: #005bac; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-          .settings-save-btn:hover { background: #004480; }
-
-          .bulk-action-bar { margin: 0 auto 1.5rem auto; display: flex; justify-content: flex-end; align-items: center; gap: 1rem; background: rgba(255, 255, 255, 0.95); padding: 0.8rem 1.5rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-          .bulk-delete-btn { background: #e11d48; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; transition: opacity 0.2s; }
-          .bulk-delete-btn:hover { opacity: 0.9; }
-
-          .tabs-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; justify-content: center; }
-          .tab-btn { background: #ffffff; border: 2px solid #e2e8f0; color: #475569; padding: 0.5rem 1.5rem; border-radius: 9999px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
-          .tab-btn:hover { border-color: #005bac; color: #005bac; }
-          .tab-btn.active { background: #005bac; border-color: #005bac; color: #ffffff; }
-
-          .quiz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin: 0 auto; }
-          .quiz-card { background: rgba(255, 255, 255, 0.95); border-top: 5px solid #005bac; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04); display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s; position: relative; }
-          .quiz-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08); }
-          .quiz-select-checkbox { transform: scale(1.4); margin-right: 0.8rem; cursor: pointer; accent-color: #e11d48; }
-
-          .editing-card { border: 2px solid #009944 !important; border-top: 6px solid #009944 !important; background: #f0fdf4 !important; }
-          .id-badge { display: inline-block; background: #e2e8f0; color: #475569; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.8rem; font-weight: bold; margin-right: 0.5rem; }
-          .genre-badge { display: inline-block; background: #005bac; color: white; padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; margin-right: 0.5rem; }
-          .sub-genre-badge { display: inline-block; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; margin-right: 0.5rem; }
-          .diff-badge { display: inline-block; background: #ff9900; color: white; padding: 0.3rem 0.6rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; }
-          .quiz-card h3 { margin: 0 0 1rem 0; font-size: 1.15rem; color: #1e293b; line-height: 1.5; }
-          .answer { color: #009944; font-weight: bold; font-size: 1.1rem; }
-          .explanation { font-size: 0.9rem; color: #556677; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbd5e1; line-height: 1.6; }
-          .has-image { font-size: 0.85rem; color: #005bac; margin-top: 0.5rem; font-weight: bold; }
-          
-          .card-actions { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-          .edit-link-btn { background: #f1f5f9; color: #005bac; border: 1px solid #cbd5e1; padding: 0.4rem 1rem; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.9rem; text-align: center; flex: 1; transition: all 0.2s; }
-          .edit-link-btn:hover { background: #005bac; color: white; }
-          .delete-btn { background: #fff1f2; border: 1px solid #fecdd3; color: #e11d48; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: all 0.2s; }
-          .delete-btn:hover { background: #e11d48; color: white; }
-          .save-btn { background: #009944; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; }
-          .cancel-btn { background: #e2e8f0; color: #475569; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: bold; text-align: center; flex: 1; }
+          /* Loading Spinner */
+          .loader { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #38bdf8; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         </style>
       </head>
       <body>
-        <ul class="bg-shapes">
-          <li class="shape"></li><li class="shape"></li><li class="shape"></li>
-          <li class="shape"></li><li class="shape"></li><li class="shape"></li>
-          <li class="shape"></li><li class="shape"></li><li class="shape"></li><li class="shape"></li>
-        </ul>
-
         <div class="container">
-          <div class="header">
-            <h1>🎓 みんなで暗記！</h1>
-            <p>東京農工大学 クイズ管理ダッシュボード（全 ${allQuizData.length} 問）</p>
-            
-            <div style="margin-top: 1rem;">
-              <a href="/how-to-use" style="display: inline-block; background: #ff9900; color: white; text-decoration: none; padding: 0.6rem 1.5rem; border-radius: 9999px; font-weight: bold; box-shadow: 0 4px 10px rgba(255,153,0,0.3); transition: transform 0.2s;">
-                📖 使い方ガイドを開く
-              </a>
-            </div>
+          <h1>🚀 クイズBot ダッシュボード</h1>
+          
+          <div class="header-buttons">
+            <a href="/formula-editor" target="_blank" class="btn btn-outline" style="font-size:1.1rem;">🧪 数式・構造式エディタを開く</a>
           </div>
 
-          <div class="settings-accordion" id="settingsAccordion">
-            <div class="accordion-toggle" onclick="toggleAccordion()">🛠️ Discordゲーム設定を編集する</div>
-            <div class="accordion-content">
-              <form action="/save-settings" method="POST" style="margin-top:1rem;">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="playTime">⏱️ 1問の制限時間 (秒)</label>
-                    <input type="number" id="playTime" name="playTime" class="form-control" value="${currentSettings.playTime}" min="5" max="120" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="questionCount">📝 1ゲームの問題数 (問)</label>
-                    <input type="number" id="questionCount" name="questionCount" class="form-control" value="${currentSettings.questionCount}" min="1" max="50" required>
-                  </div>
-                </div>
-                <button type="submit" class="settings-save-btn">⚙️ 設定をスプレッドシートに保存</button>
-              </form>
-            </div>
+          <div class="header-buttons" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2rem;">
+            <button class="btn" onclick="openAddModal()">➕ 新しいクイズを追加する</button>
+            <button class="btn btn-green" onclick="openSettingsModal()">⚙️ ゲーム設定を変更する</button>
+            <button class="btn btn-red" onclick="deleteSelected()">🗑️ 選択したクイズを削除</button>
+            <a href="/how-to-use" class="btn btn-outline">📖 使い方を見る</a>
           </div>
 
-          <div class="csv-panel">
-            <h3>📝 みんなで新しいクイズを作ろう！</h3>
-            <p>パソコンやExcelが苦手なメンバーでも、ゲーム感覚で新しい問題をまとめて作れる安心ページです。</p>
-            
-            <div class="csv-flex">
-              <a href="/formula-editor" class="csv-maker-link" style="background: linear-gradient(135deg, #7c3aed, #2563eb); border-color: #7c3aed;">
-                🧪 数式・構造式エディタを開く（化学式・Fischer式・Haworth式）
-              </a>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                  <th>ID</th>
+                  <th>ジャンル</th>
+                  <th>難易度</th>
+                  <th>問題</th>
+                  <th>解答</th>
+                  <th>解説</th>
+                  <th>問題画像</th>
+                  <th>解説画像</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+    `;
 
-              <a href="/csv-generator" class="csv-maker-link">
-                📝 メンバー用：問題セットをつくってみる！
-              </a>
-
-              <form action="/upload-csv" method="POST" enctype="multipart/form-data" class="csv-form">
-                <span style="font-size: 0.85rem; font-weight: bold; color: #475569;">📥 メンバーから貰ったファイルをここにセットして登録：</span>
-                <div style="display: flex; gap: 8px; margin-top: 0.3rem;">
-                  <input type="file" name="csv_file" accept=".csv" required class="csv-input" style="flex: 1;">
-                  <button type="submit" class="csv-btn">🚀 登録する</button>
-                </div>
-              </form>
-
-              <a href="/download-csv" class="csv-dl-link">
-                💾 管理者用：全データのバックアップ（ファイルを保存）
-              </a>
+    records.forEach(row => {
+      let qImg = row['画像URL'] ? \`<a href="\${row['画像URL']}" target="_blank"><img src="\${row['画像URL']}" class="table-image" alt="画像"></a>\` : '-';
+      let eImg = row['解説画像URL'] ? \`<a href="\${row['解説画像URL']}" target="_blank"><img src="\${row['解説画像URL']}" class="table-image" alt="解説画像"></a>\` : '-';
+      
+      html += \`
+        <tr>
+          <td><input type="checkbox" class="rowCheckbox" value="\${row['ID']}"></td>
+          <td>\${row['ID']}</td>
+          <td><span style="background:rgba(56,189,248,0.2); color:#38bdf8; padding:0.25rem 0.5rem; border-radius:999px; font-size:0.85rem;">\${row['ジャンル']}</span></td>
+          <td>\${row['難易度']}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="\${row['問題']}">\${row['問題']}</td>
+          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="\${row['解答']}">\${row['解答']}</td>
+          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="\${row['解説']}">\${row['解説']}</td>
+          <td>\${qImg}</td>
+          <td>\${eImg}</td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick='openEditModal(\${JSON.stringify(row).replace(/'/g, "&#39;")})'>編集</button>
             </div>
-          </div>
+          </td>
+        </tr>
+      \`;
+    });
 
-          <div class="form-container">
-            <h2>➕ 新しいクイズを1問だけ追加する</h2>
-            <form action="/add-quiz" method="POST" enctype="multipart/form-data">
-              <div class="form-row">
-                <div class="form-group"> <label for="genre">🏷️ ジャンル（大区分） *</label> <input type="text" id="genre" name="genre" class="form-control" placeholder="例: 有機化学, 生化学" required> </div>
-                <div class="form-group"> <label for="sub_genre">📂 小区分（単元名など）</label> <input type="text" id="sub_genre" name="sub_genre" class="form-control" placeholder="例: αアミノ酸, 糖"> </div>
-                <div class="form-group"> <label for="difficulty">⭐ 難易度 (1〜5)</label> <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="1" required> </div>
-              </div>
-              <div class="form-group"> <label for="question">❓ 問題文 *</label> <textarea id="question" name="question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
-              <div class="form-group"> <label for="answer">✅ 正解の答え *</label> <input type="text" id="answer" name="answer" class="form-control" placeholder="正解となる単語" required> </div>
-              <div class="form-group"> <label for="explanation">💡 解説（任意）</label> <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
+    html += `
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ➕ 追加・編集モーダル -->
+        <div id="addModal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 id="modalTitle">新しいクイズを追加</h2>
+              <span class="close" onclick="closeAddModal()">&times;</span>
+            </div>
+            <form id="quizForm" enctype="multipart/form-data">
+              <input type="hidden" id="quizId" name="id">
               
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="image_file">🖼️ クイズ用の問題画像（任意）</label>
-                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                    <button type="button" onclick="openImagePool('image_url')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
-                  </div>
-                  <input type="text" id="image_url" name="image_url" class="form-control" placeholder="画像URL（プールから選択、または直接入力）" style="margin-bottom:0.5rem;">
-                  <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*">
-                  <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※ファイルを選択した場合はURLより優先されます</div>
-                </div>
-                <div class="form-group">
-                  <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label>
-                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                    <button type="button" onclick="openImagePool('exp_image_url')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
-                  </div>
-                  <input type="text" id="exp_image_url" name="exp_image_url" class="form-control" placeholder="画像URL（プールから選択、または直接入力）" style="margin-bottom:0.5rem;">
-                  <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*">
-                  <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※ファイルを選択した場合はURLより優先されます</div>
-                </div>
+              <div class="form-group">
+                <label>ジャンル (例: 化学, 物理, 情報)</label>
+                <input type="text" id="genre" name="genre" class="form-control" required>
               </div>
 
-              <button type="submit" class="submit-btn">✨ 登録する</button>
+              <div class="form-group">
+                <label>難易度 (1〜5)</label>
+                <input type="number" id="difficulty" name="difficulty" class="form-control" min="1" max="5" value="3" required>
+              </div>
+
+              <div class="form-group">
+                <label>問題文</label>
+                <textarea id="question" name="question" class="form-control" rows="3" required></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>解答</label>
+                <input type="text" id="answer" name="answer" class="form-control" required>
+              </div>
+
+              <div class="form-group">
+                <label>解説 (任意)</label>
+                <textarea id="explanation" name="explanation" class="form-control" rows="2"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>問題画像URL または 画像アップロード</label>
+                <div class="image-input-group">
+                  <input type="text" id="image_url" name="image_url" class="form-control" placeholder="https://...">
+                  <button type="button" class="btn btn-outline" onclick="openImagePool('image_url')">🖼️ プールから選ぶ</button>
+                  <div class="file-input-wrapper">
+                    <button type="button" class="btn">📁 参照...</button>
+                    <input type="file" id="image_file" name="image_file" accept="image/*" onchange="updateFileName(this, 'image_file_name')">
+                  </div>
+                </div>
+                <div id="image_file_name" style="margin-top:0.5rem; font-size:0.85rem; color:#94a3b8;">選択されていません</div>
+              </div>
+
+              <div class="form-group">
+                <label>解説画像URL または 画像アップロード</label>
+                <div class="image-input-group">
+                  <input type="text" id="exp_image_url" name="exp_image_url" class="form-control" placeholder="https://...">
+                  <button type="button" class="btn btn-outline" onclick="openImagePool('exp_image_url')">🖼️ プールから選ぶ</button>
+                  <div class="file-input-wrapper">
+                    <button type="button" class="btn">📁 参照...</button>
+                    <input type="file" id="exp_image_file" name="exp_image_file" accept="image/*" onchange="updateFileName(this, 'exp_image_file_name')">
+                  </div>
+                </div>
+                <div id="exp_image_file_name" style="margin-top:0.5rem; font-size:0.85rem; color:#94a3b8;">選択されていません</div>
+              </div>
+
+              <button type="submit" class="btn btn-green" style="width:100%; margin-top:1rem; font-size:1.1rem; padding:1rem;" id="submitBtn">登録する</button>
             </form>
-          </div>
-
-          <div class="tabs-container">
-            ${tabsHtml}
-          </div>
-
-          <div class="bulk-action-bar">
-            <span id="selected-count-text">選択されていません</span>
-            <form action="/delete-quiz" method="POST" id="bulk-delete-form" onsubmit="return confirm('選択したクイズをすべて削除してもよろしいですか？');" style="margin:0;">
-              <input type="hidden" name="id" id="bulk-delete-ids" value="">
-              <button type="submit" class="bulk-delete-btn" id="bulk-delete-btn">🗑️ 選択したクイズをまとめて削除</button>
-            </form>
-          </div>
-
-          <div class="quiz-grid">
-            ${quizCardsHtml}
           </div>
         </div>
 
-        <script>
-          function toggleAccordion() {
-            const accordion = document.getElementById('settingsAccordion');
-            accordion.classList.toggle('open');
-          }
-
-          function filterCards(genre, btnElement) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            btnElement.classList.add('active');
-            document.querySelectorAll('.quiz-card').forEach(card => {
-              if (genre === 'すべて' || card.dataset.genre === genre) { card.style.display = 'flex'; } else { card.style.display = 'none'; }
-            });
-          }
-
-          function updateBulkDeleteButton() {
-            const checkboxes = document.querySelectorAll('.quiz-select-checkbox:checked');
-            const btn = document.getElementById('bulk-delete-btn');
-            const text = document.getElementById('selected-count-text');
-            const hiddenInput = document.getElementById('bulk-delete-ids');
-            
-            if (checkboxes.length > 0) {
-              const ids = Array.from(checkboxes).map(cb => cb.value);
-              hiddenInput.value = ids.join(',');
-              text.textContent = ids.length + ' 件 of クイズを選択中';
-              btn.style.display = 'inline-block';
-            } else {
-              hiddenInput.value = '';
-              text.textContent = '選択されていません';
-              btn.style.display = 'none';
-            }
-          }
-        </script>
-
-      <!-- 画像プールモーダル -->
-      <div id="image-pool-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
-        <div style="background:#fff; width:90%; max-width:800px; max-height:85vh; border-radius:12px; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-          <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:#005bac;">🖼️ 画像プール (最近アップロード・作成した画像)</h3>
-            <button type="button" onclick="closeImagePool()" style="background:none; border:none; font-size:1.8rem; color:#64748b; cursor:pointer; line-height:1;">&times;</button>
-          </div>
-          <div id="image-pool-grid" style="padding:1.5rem; flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1.5rem; background:#f8fafc;">
-            <!-- 読み込み中 -->
-            <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">⏳ 読み込み中...</div>
+        <!-- 画像プールモーダル -->
+        <div id="image-pool-modal" class="modal" style="z-index: 2000;">
+          <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+              <h2>🖼️ Googleドライブ 画像プール (クイズ用フォルダ)</h2>
+              <span class="close" onclick="closeImagePool()">&times;</span>
+            </div>
+            <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">※ドライブ内の画像一覧を読み込んでいます...</p>
+            <div id="image-pool-grid" class="image-pool-grid">
+              <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;"><span class="loader"></span> 読み込み中...</div>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- ⚙️ 設定モーダル -->
+        <div id="settingsModal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>⚙️ ゲーム設定</h2>
+              <span class="close" onclick="closeSettingsModal()">&times;</span>
+            </div>
+            <form id="settingsForm">
+              <div class="form-group">
+                <label>1問の制限時間（秒）</label>
+                <input type="number" id="playTime" name="playTime" class="form-control" min="5" max="120" value="${settings.playTime}" required>
+              </div>
+              <div class="form-group">
+                <label>クイズの出題数（通常モード用）</label>
+                <input type="number" id="questionCount" name="questionCount" class="form-control" min="1" max="50" value="${settings.questionCount}" required>
+              </div>
+              <button type="submit" class="btn btn-green" style="width:100%; margin-top:1rem; font-size:1.1rem; padding:1rem;" id="settingsSubmitBtn">設定を保存する</button>
+            </form>
+          </div>
+        </div>
 
       <script>
-        let currentPoolTargetId = null;
+        function toggleAll(source) {
+          document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = source.checked);
+        }
+        
+        function updateFileName(input, targetId) {
+          document.getElementById(targetId).textContent = input.files.length > 0 ? input.files[0].name : "選択されていません";
+        }
 
+        const modal = document.getElementById('addModal');
+        const form = document.getElementById('quizForm');
+        
+        function openAddModal() {
+          document.getElementById('modalTitle').innerText = '新しいクイズを追加';
+          form.reset();
+          document.getElementById('quizId').value = '';
+          document.getElementById('image_file_name').textContent = '選択されていません';
+          document.getElementById('exp_image_file_name').textContent = '選択されていません';
+          modal.style.display = 'flex';
+        }
+
+        function openEditModal(rowData) {
+          document.getElementById('modalTitle').innerText = 'クイズを編集 (ID: ' + rowData['ID'] + ')';
+          document.getElementById('quizId').value = rowData['ID'];
+          document.getElementById('genre').value = rowData['ジャンル'];
+          document.getElementById('difficulty').value = rowData['難易度'];
+          document.getElementById('question').value = rowData['問題'];
+          document.getElementById('answer').value = rowData['解答'];
+          document.getElementById('explanation').value = rowData['解説'];
+          document.getElementById('image_url').value = rowData['画像URL'];
+          document.getElementById('exp_image_url').value = rowData['解説画像URL'];
+          document.getElementById('image_file_name').textContent = '選択されていません';
+          document.getElementById('exp_image_file_name').textContent = '選択されていません';
+          modal.style.display = 'flex';
+        }
+
+        function closeAddModal() { modal.style.display = 'none'; }
+        
+        const settingsModal = document.getElementById('settingsModal');
+        function openSettingsModal() { settingsModal.style.display = 'flex'; }
+        function closeSettingsModal() { settingsModal.style.display = 'none'; }
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const submitBtn = document.getElementById('submitBtn');
+          const originalText = submitBtn.innerText;
+          submitBtn.innerHTML = '<span class="loader"></span> 送信中...';
+          submitBtn.disabled = true;
+
+          const formData = new FormData(form);
+          const isEdit = document.getElementById('quizId').value !== '';
+          const endpoint = isEdit ? '/edit-quiz' : '/add-quiz';
+
+          try {
+            const response = await fetch(endpoint, { method: 'POST', body: formData });
+            const resultHtml = await response.text();
+            
+            // サーバー側で生成されたHTML（エラー画面等）が返ってきた場合、画面全体を書き換える
+            document.open();
+            document.write(resultHtml);
+            document.close();
+          } catch (error) {
+            alert('通信エラーが発生しました: ' + error.message);
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
+        });
+
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('settingsSubmitBtn');
+          btn.innerHTML = '<span class="loader"></span> 保存中...';
+          btn.disabled = true;
+          
+          try {
+            await fetch('/update-settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams(new FormData(e.target))
+            });
+            window.location.reload();
+          } catch(e) {
+            alert('保存に失敗しました');
+            btn.innerHTML = '設定を保存する';
+            btn.disabled = false;
+          }
+        });
+
+        async function deleteSelected() {
+          const selected = Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => cb.value);
+          if (selected.length === 0) return alert('削除する行を選択してください。');
+          if (!confirm(selected.length + '件のクイズを削除しますか？')) return;
+          
+          try {
+            await fetch('/delete-quiz', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: 'ids=' + selected.join(',')
+            });
+            window.location.reload();
+          } catch (e) { alert('削除に失敗しました'); }
+        }
+
+        window.onclick = function(event) {
+          if (event.target == modal) closeAddModal();
+          if (event.target == settingsModal) closeSettingsModal();
+          if (event.target == document.getElementById('image-pool-modal')) closeImagePool();
+        }
+
+        // 🖼️ 画像プール機能
+        let currentPoolTargetId = null;
         function openImagePool(targetId) {
           currentPoolTargetId = targetId;
           document.getElementById('image-pool-modal').style.display = 'flex';
+          const grid = document.getElementById('image-pool-grid');
+          grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem;"><span class="loader"></span> ドライブから画像を読み込み中...</div>';
+          
           fetch('/api/recent-images').then(r => r.json()).then(images => {
-            const grid = document.getElementById('image-pool-grid');
             if (images.length === 0) {
-              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。数式・構造式エディタで保存するとここに表示されます。</div>';
+              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像が見つかりません。フォルダの設定などを確認してください。</div>';
               return;
             }
-            grid.innerHTML = images.map(img => 
-              '<div onclick="selectImageFromPool(\\'' + img.url + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
-              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + img.url + '" style="max-width:100%; max-height:100%; object-fit:contain;"></div>' +
-              '<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">' + new Date(img.timestamp).toLocaleString() + '</div>' +
+            grid.innerHTML = images.map(url => 
+              '<div onclick="selectImageFromPool(\\'' + url + '\\')" class="image-pool-item">' +
+              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + url + '"></div>' +
               '</div>'
             ).join('');
           }).catch(e => {
-            document.getElementById('image-pool-grid').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
+            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
           });
         }
         function closeImagePool() { document.getElementById('image-pool-modal').style.display = 'none'; }
@@ -523,7 +471,8 @@ app.get('/', async (req, res) => {
       </script>
       </body>
       </html>
-    `);
+    `;
+    res.send(html);
   } catch (error) {
     console.error('ダッシュボードでのクイズ読み込みエラー:', error);
     res.send('<h2 style="color:#e11d48; text-align:center;">エラーが発生しました。</h2>');
@@ -736,29 +685,36 @@ app.post('/add-quiz', quizUploadFields, async (req, res) => {
       console.error("❌ GAS側でエラーが発生しました:", response.data);
       return res.send(`
         <div style="background:#d9534f; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif; padding:20px; text-align:center;">
-          <h1>❌ GAS（Google）側でエラーが発生しました</h1>
-          <p style="background:rgba(0,0,0,0.2); padding:15px; border-radius:5px; font-family:monospace; max-width:800px; word-wrap:break-word;">
-            ${response.data}
-          </p>
-          <button onclick="window.history.back()" style="margin-top:20px; padding:10px 20px; background:#fff; color:#d9534f; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">戻る</button>
+          <h1 style="font-size:3rem; margin-bottom:10px;">⚠️ 保存エラー</h1>
+          <p style="font-size:1.2rem;">Googleドライブ側でエラーが発生したため、保存できませんでした。</p>
+          <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:5px; margin:20px 0; font-family:monospace;">${response.data}</div>
+          <p>フォルダの設定や権限、またはGASコードに問題がないか確認してください。</p>
+          <a href="/" style="display:inline-block; padding:10px 20px; background:#fff; color:#d9534f; text-decoration:none; font-weight:bold; border-radius:5px; margin-top:20px;">ダッシュボードへ戻る</a>
         </div>
       `);
     }
 
-    res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 クイズを登録しました！</h1><p>画像はドライブの「クイズ用」フォルダに保存されました。</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { 
-    console.error("❌ Node.js通信エラー:", error);
-    res.send('<h2 style="text-align:center;">クイズ登録中に通信エラーが発生しました。</h2>'); 
+    res.redirect('/');
+  } catch (error) {
+    console.error('クイズの追加エラー:', error);
+    res.send(`
+      <div style="background:#d9534f; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif; text-align:center;">
+        <h1 style="font-size:3rem; margin-bottom:10px;">⚠️ 通信エラー</h1>
+        <p style="font-size:1.2rem;">サーバーとGAS間の通信に失敗しました。</p>
+        <p>Error: ${error.message}</p>
+        <a href="/" style="display:inline-block; padding:10px 20px; background:#fff; color:#d9534f; text-decoration:none; font-weight:bold; border-radius:5px; margin-top:20px;">ダッシュボードへ戻る</a>
+      </div>
+    `);
   }
 });
 
 // ==========================================================
-// 🌟 3. 既存問題の編集時の送信処理（上書きPOST）
+// 🌟 クイズの編集
 // ==========================================================
 app.post('/edit-quiz', quizUploadFields, async (req, res) => {
   try {
-    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image, image_url, exp_image_url } = req.body;
-    let postData = { action: 'edit', id, genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '', image: image_url || old_image || '', exp_image: exp_image_url || old_exp_image || '' };
+    const { id, genre, sub_genre, difficulty, question, answer, explanation, image_url, exp_image_url } = req.body;
+    let postData = { action: 'edit', id, genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '', image: image_url || '', exp_image: exp_image_url || '' };
 
     if (req.files && req.files['image_file']) {
       const file = req.files['image_file'][0];
@@ -773,524 +729,64 @@ app.post('/edit-quiz', quizUploadFields, async (req, res) => {
       fs.unlinkSync(file.path);
     }
 
-    await axios.post(process.env.GAS_WEB_APP_URL, postData);
-    res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 クイズを上書き保存しました！</h1><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { res.send('<h2 style="text-align:center;">クイズ編集中にエラーが発生しました。</h2>'); }
-});
-
-// ==========================================================
-// 🌟 4. CSV登録画面（/import-csv等）からの一括処理
-// ==========================================================
-app.post('/save-csv-quiz', async (req, res) => {
-  try {
-    const { quizzes } = req.body; 
-    if (!quizzes || !Array.isArray(quizzes)) return res.status(400).send('データ不正');
-
-    for (const quiz of quizzes) {
-      // CSVジェネレータで事前に取得したURLが quiz.image や quiz.exp_image に入っている
-      let postData = {
-        action: 'add',
-        genre: quiz.genre, sub_genre: quiz.sub_genre || '', difficulty: quiz.difficulty || '3',
-        question: quiz.question, answer: quiz.answer, explanation: quiz.explanation || '',
-        image: quiz.image || '', exp_image: quiz.exp_image || '' 
-      };
-      await axios.post(process.env.GAS_WEB_APP_URL, postData);
-    }
-    res.json({ success: true, message: `${quizzes.length}件を一括登録しました！` });
-  } catch (error) { res.status(500).json({ success: false }); }
-});
-
-// 💻 かんたん問題セットメーカー（画像先行アップロード対応版）
-app.get('/csv-generator', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="ja">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>かんたん問題セットメーカー</title>
-      <style>
-        body { 
-          font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 2rem; line-height: 1.6;
-          background: linear-gradient(135deg, #005bac 0%, #009944 100%); color: #222222; min-height: 100vh;
-        }
-        .container { 
-          max-width: 900px; margin: 0 auto; background: rgba(255, 255, 255, 0.92); 
-          backdrop-filter: blur(12px); padding: 2.5rem; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); 
-        }
-        .back-btn { display: inline-block; margin-bottom: 1.5rem; color: #ffffff; text-decoration: none; font-weight: bold; background: #005bac; padding: 0.5rem 1rem; border-radius: 6px; }
-        h1 { color: #009944; margin-top: 0; font-size: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
-        p.desc { color: #556677; font-size: 0.95rem; margin-bottom: 2rem; }
-        
-        .maker-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
-        @media(min-width: 768px) { .maker-layout { grid-template-columns: 380px 1fr; } }
-        
-        .form-box { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 5px solid #009944; height: fit-content; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: bold; font-size: 0.9rem; color: #3b4a5a; }
-        .form-control { width: 100%; padding: 0.6rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
-        .form-control:focus { outline: none; border-color: #009944; background: #fff; }
-        .form-row { display: flex; gap: 0.5rem; }
-        .form-row .form-group { flex: 1; margin-bottom: 0; }
-        
-        /* 🌟 画像アップロード中の演出用スタイル */
-        .img-status { font-size: 0.75rem; margin-top: 3px; font-weight: bold; color: #64748b; }
-        .img-status.success { color: #009944; }
-        .img-status.loading { color: #005bac; }
-        
-        .add-list-btn { width: 100%; padding: 0.8rem; background: #009944; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin-top: 1rem; }
-        .add-list-btn:hover { background: #007a36; }
-        
-        .list-box { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 5px solid #005bac; display: flex; flex-direction: column; }
-        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f1f5f9; }
-        .list-count { font-weight: bold; color: #005bac; font-size: 1.1rem; }
-        
-        .download-btn { background: #ff9900; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; box-shadow: 0 4px 8px rgba(255,153,0,0.25); }
-        .download-btn:hover { background: #e08800; }
-        
-        .preview-scroll { max-height: 500px; overflow-y: auto; padding-right: 5px; }
-        .draft-item { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #005bac; padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 0 6px 6px 0; position: relative; }
-        .draft-tags { font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 0.3rem; }
-        .draft-tags span { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
-        .draft-q { font-weight: bold; margin: 0; font-size: 0.95rem; color: #1e293b; padding-right: 2rem; }
-        .draft-a { margin: 3px 0 0 0; font-size: 0.85rem; color: #009944; font-weight: bold; }
-        .draft-images { font-size: 0.8rem; margin: 4px 0 0 0; color: #005bac; display: flex; flex-direction: column; gap: 1px; }
-        .remove-draft-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #e11d48; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
-        .empty-text { color: #94a3b8; text-align: center; padding: 3rem 0; font-style: italic; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <a href="/" class="back-btn">← 管理画面に戻る</a>
-        <h1>📝 かんたん問題セットメーカー</h1>
-        <p class="desc">
-          フォームを埋めるだけで新しいクイズのセットをまとめて安全に作成できます。<br>
-          <strong>🌟 画像付き問題にも完全対応！</strong> 画像を選択すると、自動的にサーバーへ先行アップロードされ、CSVファイルにファイル名が記録されます。作り終わったら右側の黄色いボタンからCSVファイルを保存して、管理画面からアップロードしてください！
-        </p>
-        
-        <div class="maker-layout">
-          <div class="form-box">
-            <div class="form-group"> <label>🏷️ ジャンル（大区分） *</label> <input type="text" id="g_genre" class="form-control" placeholder="例: 有機化学, アニメ" required> </div>
-            <div class="form-group"> <label>📂 小区分（単元名など）</label> <input type="text" id="g_sub" class="form-control" placeholder="例: αアミノ酸"> </div>
-            <div class="form-group"> <label>⭐ 難易度 (1〜5)</label> <input type="number" id="g_diff" class="form-control" min="1" max="5" value="1"> </div>
-            <div class="form-group"> <label>❓ 問題文 *</label> <textarea id="g_question" class="form-control" rows="3" placeholder="問題文を入力してください" required></textarea> </div>
-            <div class="form-group"> <label>✅ 正解の答え *</label> <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required> </div>
-            <div class="form-group"> <label>💡 解説（任意）</label> <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
-            
-            <input type="hidden" id="g_img_filename" value="">
-            <input type="hidden" id="g_exp_img_filename" value="">
-
-            <div class="form-group">
-              <label>🖼️ クイズ用の問題画像 (任意)</label>
-              <input type="file" id="g_img_file" class="form-control" accept="image/*" onchange="uploadImageAsync('image_file')">
-              <div id="g_img_status" class="img-status">未選択</div>
-            </div>
-            
-            <div class="form-group">
-              <label>💡 正解発表・解説時の画像 (任意)</label>
-              <input type="file" id="g_exp_img_file" class="form-control" accept="image/*" onchange="uploadImageAsync('exp_image_file')">
-              <div id="g_exp_img_status" class="img-status">未選択</div>
-            </div>
-
-            <button type="button" class="add-list-btn" onclick="addQuizToList()">➕ 下書きリストに追加</button>
-          </div>
-          
-          <div class="list-box">
-            <div class="list-header">
-              <div class="list-count">📋 下書きリスト (<span id="count-num">0</span> 件)</div>
-              <button type="button" class="download-btn" onclick="downloadCSV()">📥 完成したファイルを保存する</button>
-            </div>
-            
-            <div class="preview-scroll" id="preview-area">
-              <div class="empty-text">まだデータがありません。左のフォームから追加してください。</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 画像プールモーダル -->
-      <div id="image-pool-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
-        <div style="background:#fff; width:90%; max-width:800px; max-height:85vh; border-radius:12px; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-          <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:#005bac;">🖼️ 画像プール (最近アップロード・作成した画像)</h3>
-            <button type="button" onclick="closeImagePool()" style="background:none; border:none; font-size:1.8rem; color:#64748b; cursor:pointer; line-height:1;">&times;</button>
-          </div>
-          <div id="image-pool-grid" style="padding:1.5rem; flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1.5rem; background:#f8fafc;">
-            <!-- 読み込み中 -->
-            <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">⏳ 読み込み中...</div>
-          </div>
-        </div>
-      </div>
-
-      <script>
-        let quizList = [];
-        let currentPoolTargetId = null;
-
-        function openImagePool(targetId) {
-          currentPoolTargetId = targetId;
-          document.getElementById('image-pool-modal').style.display = 'flex';
-          fetch('/api/recent-images').then(r => r.json()).then(images => {
-            const grid = document.getElementById('image-pool-grid');
-            if (images.length === 0) {
-              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。</div>';
-              return;
-            }
-            grid.innerHTML = images.map(img => 
-              '<div onclick="selectImageFromPool(\\'' + img.url + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
-              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + img.url + '" style="max-width:100%; max-height:100%; object-fit:contain;"></div>' +
-              '<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">' + new Date(img.timestamp).toLocaleString() + '</div>' +
-              '</div>'
-            ).join('');
-          }).catch(e => {
-            document.getElementById('image-pool-grid').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
-          });
-        }
-        function closeImagePool() { document.getElementById('image-pool-modal').style.display = 'none'; }
-        function selectImageFromPool(url) {
-          if (currentPoolTargetId) { document.getElementById(currentPoolTargetId).value = url; }
-          closeImagePool();
-        }
-
-  // 🌟 画像を選んだ瞬間に裏側でGASへアップロードしてURLをもらう
-        async function uploadImageAsync(fieldName) {
-          const fileInput = fieldName === 'image_file' ? document.getElementById('g_img_file') : document.getElementById('g_exp_img_file');
-          const statusDiv = fieldName === 'image_file' ? document.getElementById('g_img_status') : document.getElementById('g_exp_img_status');
-          const hiddenInput = fieldName === 'image_file' ? document.getElementById('g_img_filename') : document.getElementById('g_exp_img_filename');
-
-          if (!fileInput.files || fileInput.files.length === 0) return;
-
-          statusDiv.className = 'img-status loading';
-          statusDiv.textContent = '⏳ ドライブの「クイズ用」フォルダに保存中...';
-
-          const formData = new FormData();
-          formData.append(fieldName, fileInput.files[0]);
-
-          try {
-            const response = await fetch('/api/upload-image-single', { method: 'POST', body: formData });
-            const data = await response.json();
-
-            // 💡 サーバーからファイル名ではなく「ドライブのURL」が直接返ってくる
-            if (response.ok && data.url) {
-              hiddenInput.value = data.url; // CSVには直接URLを埋め込む
-              statusDiv.className = 'img-status success';
-              statusDiv.textContent = '✅ 保存完了！(URL取得済)';
-            } else {
-              throw new Error(data.error || '不明なエラー');
-            }
-          } catch (error) {
-            console.error(error);
-            alert('アップロードに失敗しました。');
-            statusDiv.className = 'img-status';
-            statusDiv.textContent = '❌ 失敗しました';
-            fileInput.value = '';
-          }
-        }
-
-        function addQuizToList() {
-          const genre = document.getElementById('g_genre').value.trim();
-          const sub_genre = document.getElementById('g_sub').value.trim();
-          const difficulty = document.getElementById('g_diff').value || 1;
-          const question = document.getElementById('g_question').value.trim();
-          const answer = document.getElementById('g_answer').value.trim();
-          const explanation = document.getElementById('g_exp').value.trim();
-          const image = document.getElementById('g_img_filename').value;        // 🌟 隠し欄から取得
-          const exp_image = document.getElementById('g_exp_img_filename').value; // 🌟 隠し欄から取得
-
-          if (!genre || !question || !answer) {
-            alert('「ジャンル」「問題文」「正解の答え」は必須入力です！');
-            return;
-          }
-
-          const newQuiz = { genre, sub_genre, difficulty, question, answer, explanation, image, exp_image };
-          quizList.push(newQuiz);
-
-          // 入力欄をリセット
-          document.getElementById('g_question').value = '';
-          document.getElementById('g_answer').value = '';
-          document.getElementById('g_exp').value = '';
-          
-          document.getElementById('g_img_file').value = '';
-          document.getElementById('g_exp_img_file').value = '';
-          document.getElementById('g_img_filename').value = '';
-          document.getElementById('g_exp_img_filename').value = '';
-          
-          document.getElementById('g_img_status').className = 'img-status';
-          document.getElementById('g_img_status').textContent = '未選択';
-          document.getElementById('g_exp_img_status').className = 'img-status';
-          document.getElementById('g_exp_img_status').textContent = '未選択';
-
-          updatePreview();
-        }
-
-        function removeQuiz(index) {
-          quizList.splice(index, 1);
-          updatePreview();
-        }
-
-        function updatePreview() {
-          const area = document.getElementById('preview-area');
-          const countSpan = document.getElementById('count-num');
-          countSpan.textContent = quizList.length;
-
-          if (quizList.length === 0) {
-            area.innerHTML = '<div class="empty-text">まだデータがありません。左のフォームから追加してください。</div>';
-            return;
-          }
-
-          let html = '';
-          quizList.forEach((q, idx) => {
-            html += \`
-              <div class="draft-item">
-                <div class="draft-tags">
-                  <span>🏷️ \${escapeHtml(q.genre)}</span>
-                  \${q.sub_genre ? \`<span>📂 \${escapeHtml(q.sub_genre)}</span>\` : ''}
-                  <span>⭐ \${q.difficulty}</span>
-                </div>
-                <p class="draft-q">Q. \${escapeHtml(q.question)}</p>
-                <p class="draft-a">A. \${escapeHtml(q.answer)}</p>
-                
-                <div class="draft-images">
-                  \${q.image ? \`<span>🖼️ 問題画像: \${escapeHtml(q.image)}</span>\` : ''}
-                  \${q.exp_image ? \`<span style="color:#009944;">💡 解説画像: \${escapeHtml(q.exp_image)}</span>\` : ''}
-                </div>
-
-                <button type="button" class="remove-draft-btn" onclick="removeQuiz(\${idx})">×</button>
-              </div>
-            \`;
-          });
-          area.innerHTML = html;
-        }
-
-        function escapeHtml(str) {
-          if(!str) return '';
-          return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        }
-
-        function downloadCSV() {
-          if (quizList.length === 0) {
-            alert('下書きリストにクイズが1件も入っていません！');
-            return;
-          }
-
-          let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation,image,exp_image\\n';
-          
-          quizList.forEach(q => {
-            const escape = (str) => \`"\${(str || '').replace(/"/g, '""')}"\`;
-            csvContent += \`\${escape(q.genre)},\${escape(q.sub_genre)},\${q.difficulty},\${escape(q.question)},\${escape(q.answer)},\${escape(q.explanation)},\${escape(q.image)},\${escape(q.exp_image)}\\n\`;
-          });
-
-          const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-          const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
-          
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.setAttribute('href', url);
-          link.setAttribute('download', 'tuat_quiz_draft.csv'); 
-          link.style.visibility = 'hidden';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      </script>
-    </body>
-    </html>
-  `);
-});
-
-// 設定保存
-app.post('/save-settings', async (req, res) => {
-  try {
-    const { playTime, questionCount } = req.body;
-    await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'updateSettings', playTime, questionCount } });
-    res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>⚙️ 設定を保存しました！</h1><p>画面を戻しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) { res.send('<h2 style="text-align:center;">設定の保存中にエラーが発生しました。</h2>'); }
-});
-
-// 🛠️ クイズ追加 (🌟 Googleドライブ自動転送・POST対応版)
-app.post('/add-quiz', quizUploadFields, async (req, res) => {
-  try {
-    const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
+    const response = await axios.post(process.env.GAS_WEB_APP_URL, postData);
     
-    // GASのdoPostへ送るベースデータを構築
-    let postData = {
-      action: 'add',
-      genre: genre,
-      sub_genre: sub_genre || '',
-      difficulty: difficulty,
-      question: question,
-      answer: answer,
-      explanation: explanation || ''
-    };
-
-    // 🖼️ 問題画像がある場合、Base64文字列に変換してセット
-    if (req.files && req.files['image_file']) {
-      const file = req.files['image_file'][0];
-      postData.image_base64 = fs.readFileSync(file.path, 'base64');
-      postData.image_mime = file.mimetype;
-      postData.image_name = file.originalname;
-      
-      // 送信後はサーバーの容量を圧迫しないよう、ローカルの一時ファイルは即時削除
-      fs.unlinkSync(file.path);
+    if (typeof response.data === 'string' && response.data.includes('Error')) {
+      console.error("❌ GAS側でエラーが発生しました:", response.data);
+      return res.send(`
+        <div style="background:#d9534f; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif; padding:20px; text-align:center;">
+          <h1 style="font-size:3rem; margin-bottom:10px;">⚠️ 保存エラー</h1>
+          <p style="font-size:1.2rem;">Googleドライブ側でエラーが発生したため、編集内容を保存できませんでした。</p>
+          <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:5px; margin:20px 0; font-family:monospace;">${response.data}</div>
+          <p>フォルダの設定や権限、またはGASコードに問題がないか確認してください。</p>
+          <a href="/" style="display:inline-block; padding:10px 20px; background:#fff; color:#d9534f; text-decoration:none; font-weight:bold; border-radius:5px; margin-top:20px;">ダッシュボードへ戻る</a>
+        </div>
+      `);
     }
 
-    // 💡 解説画像がある場合、Base64文字列に変換してセット
-    if (req.files && req.files['exp_image_file']) {
-      const file = req.files['exp_image_file'][0];
-      postData.exp_image_base64 = fs.readFileSync(file.path, 'base64');
-      postData.exp_image_mime = file.mimetype;
-      postData.exp_image_name = file.originalname;
-      
-      fs.unlinkSync(file.path);
-    }
-
-    // 🚀 GASウェブアプリURLへ、axios.post でデータを一撃送信！
-    await axios.post(process.env.GAS_WEB_APP_URL, postData);
-
-    res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 クイズを登録しました！</h1><p>画像はGoogleドライブへ自動保存されました。画面を戻しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
+    res.redirect('/');
   } catch (error) {
-    console.error('クイズ登録エラー💦', error);
-    res.send('<h2 style="text-align:center;">クイズ登録中にエラーが発生しました。</h2>');
-  }
-});
-
-// 🛠️ クイズ編集 (🌟 Googleドライブ自動転送・POST対応版)
-app.post('/edit-quiz', quizUploadFields, async (req, res) => {
-  try {
-    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image } = req.body;
-    
-    let postData = {
-      action: 'edit',
-      id: id,
-      genre: genre,
-      sub_genre: sub_genre || '',
-      difficulty: difficulty,
-      question: question,
-      answer: answer,
-      explanation: explanation || '',
-      image: old_image || '',       // 新しい画像がない場合は古いURLを維持
-      exp_image: old_exp_image || '' // 新しい画像がない場合は古いURLを維持
-    };
-
-    // 🖼️ 新しい問題画像がアップロードされた場合
-    if (req.files && req.files['image_file']) {
-      const file = req.files['image_file'][0];
-      postData.image_base64 = fs.readFileSync(file.path, 'base64');
-      postData.image_mime = file.mimetype;
-      postData.image_name = file.originalname;
-      
-      fs.unlinkSync(file.path);
-    }
-
-    // 💡 新しい解説画像がアップロードされた場合
-    if (req.files && req.files['exp_image_file']) {
-      const file = req.files['exp_image_file'][0];
-      postData.exp_image_base64 = fs.readFileSync(file.path, 'base64');
-      postData.exp_image_mime = file.mimetype;
-      postData.exp_image_name = file.originalname;
-      
-      fs.unlinkSync(file.path);
-    }
-
-    // 🚀 GASへ上書きデータをポスト送信！
-    await axios.post(process.env.GAS_WEB_APP_URL, postData);
-
-    res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 クイズを上書き保存しました！</h1><p>画面を戻しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
-  } catch (error) {
-    console.error('クイズ編集エラー💦', error);
-    res.send('<h2 style="text-align:center;">クイズ編集中にエラーが発生しました。</h2>');
-  }
-});
-
-// クイズ削除
-app.post('/delete-quiz', async (req, res) => {
-  try {
-    await axios.get(process.env.GAS_WEB_APP_URL, { params: { action: 'delete', id: req.body.id } });
-    res.send(`<div style="background:#e11d48; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🗑️ 削除しました</h1><p>画面を更新しています...</p><script>setTimeout(() => { window.location.href = '/'; }, 1000);</script></div>`);
-  } catch (error) { res.send('<h2 style="text-align:center;">エラーが発生しました。</h2>'); }
-});
-
-// ==========================================================
-// 📥 ファイルからクイズを一括登録する (🌟 exp_image 列に対応)
-// ==========================================================
-app.post('/upload-csv', upload.single('csv_file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.send('<h2>⚠️ ファイルがアップロードされていません。</h2><a href="/">戻る</a>');
-    }
-
-    const csvData = fs.readFileSync(req.file.path, 'utf8');
-    const records = parse(csvData, {
-      columns: true,       
-      skip_empty_lines: true, 
-      trim: true,
-      bom: true 
-    });
-
-    console.log(`📦 ファイルから ${records.length} 件 of データを検出しました。登録を開始します...`);
-
-    for (const record of records) {
-      await axios.get(process.env.GAS_WEB_APP_URL, {
-        params: {
-          action: 'add',
-          genre: record.genre || '',
-          sub_genre: record.sub_genre || '', 
-          difficulty: record.difficulty || 1,
-          question: record.question || '',
-          answer: record.answer || '',
-          explanation: record.explanation || '',
-          image: record.image || '',       // 🌟 ファイル内指定があれば引き継ぐ
-          exp_image: record.exp_image || '' // 🌟 解説画像も一括対応
-        }
-      });
-    }
-
-    fs.unlinkSync(req.file.path);
-
+    console.error('クイズの編集エラー:', error);
     res.send(`
-      <div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
-        <h1>🎉 ${records.length}件のクイズを一括登録しました！</h1>
-        <p>まもなくダッシュボードに戻ります...</p>
-        <script>setTimeout(() => { window.location.href = '/'; }, 2000);</script>
+      <div style="background:#d9534f; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif; text-align:center;">
+        <h1 style="font-size:3rem; margin-bottom:10px;">⚠️ 通信エラー</h1>
+        <p style="font-size:1.2rem;">サーバーとGAS間の通信に失敗しました。</p>
+        <p>Error: ${error.message}</p>
+        <a href="/" style="display:inline-block; padding:10px 20px; background:#fff; color:#d9534f; text-decoration:none; font-weight:bold; border-radius:5px; margin-top:20px;">ダッシュボードへ戻る</a>
       </div>
     `);
-
-  } catch (error) {
-    console.error('一括登録エラー:', error);
-    res.status(500).send('<h2>❌ ファイルの解析または登録中にエラーが発生しました。</h2><a href="/">戻る</a>');
   }
 });
 
 // ==========================================================
-// 📤 ダウンロード (🌟 exp_image 列のエクスポートに対応)
+// 🗑️ 複数削除
 // ==========================================================
-app.get('/download-csv', async (req, res) => {
+app.post('/delete-quiz', async (req, res) => {
   try {
-    const SPREADSHEET_CSV_URL = process.env.SPREADSHEET_CSV_URL;
-    const separator = SPREADSHEET_CSV_URL.includes('?') ? '&' : '?';
-    const response = await axios.get(`${SPREADSHEET_CSV_URL}${separator}t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' } });
-    const allQuizData = parse(response.data, { columns: true, skip_empty_lines: true });
-    
-    // ヘッダーに exp_image をバッチリ追加
-    let csvContent = 'genre,sub_genre,difficulty,question,answer,explanation,image,exp_image\n';
-    
-    for (const q of allQuizData) {
-      const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-      csvContent += `${escape(q.genre)},${escape(q.sub_genre)},${q.difficulty || 1},${escape(q.question)},${escape(q.answer)},${escape(q.explanation)},${escape(q.image)},${escape(q.exp_image)}\n`;
-    }
-    
-    const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
-    const buffer = Buffer.concat([bom, Buffer.from(csvContent, 'utf8')]);
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename=tuat_quiz_backup.csv');
-    res.send(buffer);
-
+    const { ids } = req.body;
+    await axios.post(process.env.GAS_WEB_APP_URL, { action: 'delete', id: ids });
+    res.redirect('/');
   } catch (error) {
-    console.error('ダウンロードエラー:', error);
-    res.status(500).send('データのダウンロードに失敗しました。');
+    console.error('クイズの削除エラー:', error);
+    res.status(500).send('Error deleting quiz');
   }
 });
 
-app.listen(PORT, () => { console.log(`🌐 Webサーバーがポート ${PORT} で起動しました！`); });
+// ==========================================================
+// ⚙️ 設定更新
+// ==========================================================
+app.post('/update-settings', async (req, res) => {
+  try {
+    const { playTime, questionCount } = req.body;
+    await axios.post(process.env.GAS_WEB_APP_URL, { action: 'updateSettings', playTime, questionCount });
+    res.redirect('/');
+  } catch (error) {
+    console.error('設定更新エラー:', error);
+    res.status(500).send('Error updating settings');
+  }
+});
 
-client.login(process.env.BOT_TOKEN);
+client.login(process.env.DISCORD_TOKEN);
+app.listen(PORT, () => {
+  console.log(`🚀 Web Dashboard is running on http://localhost:${PORT}`);
+});
