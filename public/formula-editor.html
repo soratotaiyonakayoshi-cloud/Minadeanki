@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数式・構造式エディタ - みんなで暗記！</title>
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js"></script>
+  <!-- html2canvas -->
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Segoe UI', sans-serif;
+      margin: 0; padding: 2rem; line-height: 1.6;
+      background: linear-gradient(135deg, #005bac 0%, #009944 100%);
+      color: #222; min-height: 100vh;
+    }
+    .bg-shapes { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0; list-style: none; }
+    .shape { position: absolute; display: block; background: rgba(255,255,255,0.30); animation: float 22s linear infinite; bottom: -150px; }
+    .shape:nth-child(1) { left:25%; width:80px; height:80px; animation-delay:0s; }
+    .shape:nth-child(2) { left:10%; width:30px; height:30px; animation-delay:2s; animation-duration:12s; border-radius:50%; }
+    .shape:nth-child(3) { left:70%; width:25px; height:25px; animation-delay:4s; }
+    .shape:nth-child(4) { left:40%; width:60px; height:60px; animation-delay:0s; animation-duration:18s; border-radius:50%; }
+    .shape:nth-child(5) { left:65%; width:20px; height:20px; animation-delay:0s; }
+    .shape:nth-child(6) { left:75%; width:110px; height:110px; animation-delay:3s; }
+    .shape:nth-child(7) { left:35%; width:130px; height:130px; animation-delay:7s; }
+    .shape:nth-child(8) { left:50%; width:25px; height:25px; animation-delay:15s; animation-duration:45s; }
+    @keyframes float {
+      0% { transform: translateY(0) rotate(0deg); opacity:1; border-radius:10%; }
+      100% { transform: translateY(-1000px) rotate(540deg); opacity:0; border-radius:50%; }
+    }
+
+    .container {
+      max-width: 960px; margin: 0 auto;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      padding: 2.5rem; border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+      border-top: 6px solid #005bac; position: relative; z-index: 1;
+    }
+    .back-btn { display:inline-block; margin-bottom:1.5rem; color:#fff; text-decoration:none; font-weight:bold; background:#005bac; padding:0.5rem 1rem; border-radius:6px; transition:all 0.2s; }
+    .back-btn:hover { background:#004480; transform:translateY(-2px); }
+    h1 { color:#005bac; margin-top:0; font-size:1.8rem; border-bottom:2px solid #e2e8f0; padding-bottom:0.5rem; }
+    .desc { color:#556677; font-size:0.92rem; margin-bottom:1.5rem; }
+
+    /* ===== Editor Tabs ===== */
+    .editor-tabs { display:flex; gap:0.5rem; margin-bottom:0; flex-wrap:wrap; }
+    .editor-tab {
+      flex:1; min-width:140px; padding:0.8rem 1rem; border:2px solid #e2e8f0; border-bottom:none;
+      background:#f8fafc; color:#475569; font-weight:bold; font-size:0.95rem;
+      cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s; text-align:center;
+    }
+    .editor-tab:hover { background:#e2e8f0; }
+    .editor-tab.active { background:#fff; color:#005bac; border-color:#005bac; border-bottom-color:#fff; position:relative; z-index:2; }
+
+    .tab-panel {
+      display:none; background:#fff; border:2px solid #005bac; border-top:none;
+      border-radius:0 0 12px 12px; padding:1.5rem; margin-bottom:1.5rem;
+      min-height: 300px;
+    }
+    .tab-panel.active { display:block; }
+
+    /* ===== LaTeX Editor ===== */
+    .template-section h3 { color:#009944; margin:0 0 0.8rem 0; font-size:1rem; }
+    .template-buttons { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:1.2rem; }
+    .tpl-btn {
+      padding:0.4rem 0.8rem; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534;
+      border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.15s;
+    }
+    .tpl-btn:hover { background:#166534; color:#fff; transform:translateY(-1px); }
+    .tpl-btn.chem { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
+    .tpl-btn.chem:hover { background:#92400e; color:#fff; }
+    .tpl-btn.math { background:#ede9fe; border-color:#c4b5fd; color:#5b21b6; }
+    .tpl-btn.math:hover { background:#5b21b6; color:#fff; }
+
+    .editor-layout { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    @media(max-width:700px) { .editor-layout { grid-template-columns:1fr; } }
+    .editor-layout label { display:block; font-weight:bold; font-size:0.9rem; color:#3b4a5a; margin-bottom:0.4rem; }
+    .editor-layout textarea {
+      width:100%; padding:0.8rem; background:#f8fafc; border:1px solid #cbd5e1;
+      border-radius:8px; font-family:'Courier New',monospace; font-size:0.95rem; resize:vertical;
+    }
+    .editor-layout textarea:focus { outline:none; border-color:#009944; background:#fff; }
+    .preview-box {
+      min-height:100px; padding:1.5rem; background:#fafafa; border:2px dashed #e2e8f0;
+      border-radius:8px; display:flex; align-items:center; justify-content:center;
+      font-size:1.2rem; overflow:auto; transition: border-color 0.2s;
+    }
+    .preview-box.has-content { border-color:#009944; border-style:solid; }
+    .preview-box .katex-display { margin: 0; }
+
+    /* ===== Kekule.js Composer ===== */
+    .kekule-wrapper { width:100%; height:500px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; position:relative; }
+    .kekule-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.9); z-index:10; font-size:1.1rem; color:#005bac; font-weight:bold; }
+    .hint { font-size:0.85rem; color:#64748b; margin-top:0.5rem; }
+
+    /* ===== Projection Tabs ===== */
+    .proj-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; }
+    .proj-tab {
+      padding:0.5rem 1.2rem; background:#f1f5f9; border:1px solid #e2e8f0; color:#475569;
+      border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.9rem; transition:all 0.2s;
+    }
+    .proj-tab:hover { background:#e2e8f0; }
+    .proj-tab.active { background:#009944; color:#fff; border-color:#009944; }
+    .proj-panel { display:none; }
+    .proj-panel.active { display:block; }
+
+    /* ===== Fischer / Haworth builders ===== */
+    .builder-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
+    @media(max-width:700px) { .builder-layout { grid-template-columns:1fr; } }
+    .config-panel { background:#f8fafc; padding:1.2rem; border-radius:10px; border:1px solid #e2e8f0; }
+    .config-panel h4 { margin:0 0 0.8rem 0; color:#005bac; font-size:0.95rem; }
+    .form-group { margin-bottom:0.8rem; }
+    .form-group label { display:block; font-size:0.85rem; font-weight:bold; color:#475569; margin-bottom:0.3rem; }
+    .form-control {
+      width:100%; padding:0.5rem; background:#fff; border:1px solid #cbd5e1;
+      border-radius:6px; font-size:0.9rem;
+    }
+    .form-control:focus { outline:none; border-color:#009944; }
+    select.form-control { cursor:pointer; }
+    .form-row { display:flex; gap:0.5rem; align-items:end; }
+    .form-row .form-group { flex:1; }
+    .substituent-row { display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem; padding:0.5rem; background:#fff; border:1px solid #e2e8f0; border-radius:6px; }
+    .substituent-row .label-col { font-weight:bold; color:#005bac; min-width:30px; text-align:center; }
+    .substituent-row select, .substituent-row input { flex:1; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; }
+    .quick-groups { display:flex; flex-wrap:wrap; gap:4px; margin-top:0.5rem; }
+    .quick-group-btn {
+      padding:2px 8px; background:#e0f2fe; border:1px solid #7dd3fc; color:#0369a1;
+      border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:bold; transition:all 0.15s;
+    }
+    .quick-group-btn:hover { background:#0369a1; color:#fff; }
+
+    .preview-panel { display:flex; align-items:center; justify-content:center; }
+    .svg-preview {
+      min-height:200px; padding:1rem; background:#fff; border:2px solid #e2e8f0;
+      border-radius:10px; display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .svg-preview svg { max-width:100%; height:auto; }
+
+    /* ===== Export Section ===== */
+    .export-section {
+      background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%);
+      border:2px solid #bae6fd; border-radius:12px; padding:1.5rem; margin-top:0.5rem;
+    }
+    .export-section h3 { margin:0 0 1rem 0; color:#005bac; font-size:1.1rem; }
+    .export-controls { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+    .export-btn {
+      padding:0.7rem 1.5rem; background:linear-gradient(135deg, #009944, #006633);
+      color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:1rem;
+      cursor:pointer; box-shadow:0 4px 12px rgba(0,153,68,0.3); transition:all 0.2s;
+    }
+    .export-btn:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,153,68,0.4); }
+    .export-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .export-status { font-size:0.9rem; font-weight:bold; }
+    .export-status.loading { color:#005bac; }
+    .export-status.success { color:#009944; }
+    .export-status.error { color:#e11d48; }
+    .url-result { margin-top:1rem; display:none; }
+    .url-result label { font-weight:bold; font-size:0.9rem; color:#475569; display:block; margin-bottom:0.3rem; }
+    .url-row { display:flex; gap:0.5rem; }
+    .url-row input {
+      flex:1; padding:0.6rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px;
+      font-size:0.85rem; font-family:monospace;
+    }
+    .url-row button {
+      padding:0.6rem 1rem; background:#005bac; color:#fff; border:none; border-radius:6px;
+      font-weight:bold; cursor:pointer; white-space:nowrap; transition:all 0.2s;
+    }
+    .url-row button:hover { background:#004480; }
+    .url-hint { font-size:0.8rem; color:#009944; margin-top:0.5rem; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <ul class="bg-shapes">
+    <li class="shape"></li><li class="shape"></li><li class="shape"></li>
+    <li class="shape"></li><li class="shape"></li><li class="shape"></li>
+    <li class="shape"></li><li class="shape"></li>
+  </ul>
+
+  <div class="container">
+    <a href="/" class="back-btn">← 管理画面に戻る</a>
+    <h1>🧪 数式・構造式エディタ</h1>
+    <p class="desc">
+      化学式・数式・構造式を入力してPNG画像に変換し、クイズの画像として登録できます。<br>
+      画像ファイルを事前に用意する必要はありません！
+    </p>
+
+    <!-- ===== Tab Navigation ===== -->
+    <div class="editor-tabs">
+      <button class="editor-tab active" onclick="switchTab('latex')">📐 数式エディタ</button>
+      <button class="editor-tab" onclick="switchTab('structure')">🔬 構造式エディタ</button>
+      <button class="editor-tab" onclick="switchTab('projection')">🧬 Fischer / Haworth</button>
+    </div>
+
+    <!-- ===== Tab 1: LaTeX Editor ===== -->
+    <div id="tab-latex" class="tab-panel active">
+      <div class="template-section">
+        <h3>📋 よく使うテンプレート（クリックで挿入）</h3>
+        <div class="template-buttons">
+          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  }')">⚗️ 化学式 \ce{}</button>
+          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  ->  }')">➡️ 反応式</button>
+          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  <=>  }')">⇌ 平衡</button>
+          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  ->[$\\Delta$]  }')">🔥 加熱反応</button>
+          <button class="tpl-btn chem" onclick="insertLatex('\\ce{^{  }_{  }X}')">🔢 同位体</button>
+          <button class="tpl-btn math" onclick="insertLatex('\\frac{  }{  }')">➗ 分数</button>
+          <button class="tpl-btn math" onclick="insertLatex('\\sqrt{  }')">√ 平方根</button>
+          <button class="tpl-btn math" onclick="insertLatex('\\int_{  }^{  }')">∫ 積分</button>
+          <button class="tpl-btn math" onclick="insertLatex('\\sum_{i=1}^{n}')">Σ 総和</button>
+          <button class="tpl-btn math" onclick="insertLatex('^{  }')">x² 上付き</button>
+          <button class="tpl-btn math" onclick="insertLatex('_{  }')">xₙ 下付き</button>
+          <button class="tpl-btn math" onclick="insertLatex('\\rightarrow')">→ 矢印</button>
+        </div>
+      </div>
+      <div class="editor-layout">
+        <div>
+          <label for="latex-input">✏️ LaTeX入力</label>
+          <textarea id="latex-input" rows="5" oninput="updateLatexPreview()" placeholder="例: \ce{H2SO4 + 2NaOH -> Na2SO4 + 2H2O}"></textarea>
+          <p class="hint">💡 化学式は <code>\ce{...}</code> で囲みます。数式はそのまま入力できます。</p>
+        </div>
+        <div>
+          <label>👁️ プレビュー</label>
+          <div id="latex-preview" class="preview-box">ここにプレビューが表示されます</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Tab 2: Structure Editor (Kekule.js) ===== -->
+    <div id="tab-structure" class="tab-panel">
+      <p class="hint" style="margin-top:0;">🖱️ マウスで原子を配置し、ドラッグで結合を描画できます。ベンゼン環やシクロヘキサンなどのテンプレートもツールバーから使えます。</p>
+      <div class="kekule-wrapper" id="kekule-wrapper">
+        <div class="kekule-loading" id="kekule-loading">⏳ 構造式エディタを読み込み中...</div>
+        <div id="kekule-area" style="width:100%; height:100%;"></div>
+      </div>
+      <p class="hint">※ 初回読み込みに数秒かかることがあります。ツールバー左端のボタンでベンゼン環等のテンプレートを使用できます。</p>
+    </div>
+
+    <!-- ===== Tab 3: Fischer / Haworth ===== -->
+    <div id="tab-projection" class="tab-panel">
+      <div class="proj-tabs">
+        <button class="proj-tab active" onclick="switchProjection('fischer')">📊 Fischer式</button>
+        <button class="proj-tab" onclick="switchProjection('haworth')">🔄 Haworth式</button>
+      </div>
+
+      <!-- Fischer Builder -->
+      <div id="proj-fischer" class="proj-panel active">
+        <div class="builder-layout">
+          <div class="config-panel">
+            <h4>⚙️ Fischer式の設定</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>炭素数</label>
+                <select id="fischer-carbons" class="form-control" onchange="rebuildFischerInputs(); updateFischerPreview()">
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4" selected>4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>🔝 最上部の官能基</label>
+              <input type="text" id="fischer-top" class="form-control" value="CHO" oninput="updateFischerPreview()">
+              <div class="quick-groups">
+                <button class="quick-group-btn" onclick="setVal('fischer-top','CHO')">CHO</button>
+                <button class="quick-group-btn" onclick="setVal('fischer-top','COOH')">COOH</button>
+                <button class="quick-group-btn" onclick="setVal('fischer-top','CO')">CO</button>
+                <button class="quick-group-btn" onclick="setVal('fischer-top','CH₃')">CH₃</button>
+              </div>
+            </div>
+            <div id="fischer-substituents">
+              <!-- Built dynamically -->
+            </div>
+            <div class="form-group">
+              <label>🔽 最下部の官能基</label>
+              <input type="text" id="fischer-bottom" class="form-control" value="CH₂OH" oninput="updateFischerPreview()">
+              <div class="quick-groups">
+                <button class="quick-group-btn" onclick="setVal('fischer-bottom','CH₂OH')">CH₂OH</button>
+                <button class="quick-group-btn" onclick="setVal('fischer-bottom','CH₃')">CH₃</button>
+                <button class="quick-group-btn" onclick="setVal('fischer-bottom','COOH')">COOH</button>
+                <button class="quick-group-btn" onclick="setVal('fischer-bottom','H')">H</button>
+              </div>
+            </div>
+          </div>
+          <div class="preview-panel">
+            <div class="svg-preview" id="fischer-preview"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Haworth Builder -->
+      <div id="proj-haworth" class="proj-panel">
+        <div class="builder-layout">
+          <div class="config-panel">
+            <h4>⚙️ Haworth式の設定</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>環の種類</label>
+                <select id="haworth-ring" class="form-control" onchange="rebuildHaworthInputs(); updateHaworthPreview()">
+                  <option value="pyranose" selected>ピラノース (六員環)</option>
+                  <option value="furanose">フラノース (五員環)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>アノマー</label>
+                <select id="haworth-anomer" class="form-control" onchange="updateHaworthPreview()">
+                  <option value="alpha">α (C1-OH 下)</option>
+                  <option value="beta">β (C1-OH 上)</option>
+                </select>
+              </div>
+            </div>
+            <div id="haworth-substituents">
+              <!-- Built dynamically -->
+            </div>
+          </div>
+          <div class="preview-panel">
+            <div class="svg-preview" id="haworth-preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Export Section ===== -->
+    <div class="export-section">
+      <h3>📸 画像として保存・登録</h3>
+      <div class="export-controls">
+        <button class="export-btn" id="export-btn" onclick="exportAndUpload()">🖼️ 画像をGoogleドライブに保存</button>
+        <span class="export-status" id="export-status"></span>
+      </div>
+      <div class="url-result" id="url-result">
+        <label>✅ 生成されたURL:</label>
+        <div class="url-row">
+          <input type="text" id="result-url" readonly>
+          <button onclick="copyUrl()">📋 コピー</button>
+        </div>
+        <p class="url-hint">↑ このURLをクイズ追加フォームの「画像URL」欄に貼り付けてください</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ========================================
+       Tab Switching
+    ======================================== */
+    var currentTab = 'latex';
+    var kekuleLoaded = false;
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.editor-tab').forEach(function(btn) { btn.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(panel) { panel.classList.remove('active'); });
+      document.getElementById('tab-' + tabId).classList.add('active');
+      currentTab = tabId;
+
+      // Highlight the correct tab button
+      var tabs = document.querySelectorAll('.editor-tab');
+      var tabMap = { 'latex': 0, 'structure': 1, 'projection': 2 };
+      if (tabMap[tabId] !== undefined) tabs[tabMap[tabId]].classList.add('active');
+
+      // Lazy-load Kekule.js when structure tab is first opened
+      if (tabId === 'structure' && !kekuleLoaded) {
+        loadKekule();
+      }
+    }
+
+    /* ========================================
+       LaTeX Editor
+    ======================================== */
+    function updateLatexPreview() {
+      var input = document.getElementById('latex-input').value.trim();
+      var preview = document.getElementById('latex-preview');
+      if (!input) {
+        preview.innerHTML = 'ここにプレビューが表示されます';
+        preview.classList.remove('has-content');
+        return;
+      }
+      try {
+        katex.render(input, preview, { throwOnError: false, displayMode: true, trust: true });
+        preview.classList.add('has-content');
+      } catch (e) {
+        preview.innerHTML = '<span style="color:#e11d48;">⚠️ ' + e.message + '</span>';
+        preview.classList.remove('has-content');
+      }
+    }
+
+    function insertLatex(template) {
+      var input = document.getElementById('latex-input');
+      var start = input.selectionStart;
+      var end = input.selectionEnd;
+      var text = input.value;
+      input.value = text.substring(0, start) + template + text.substring(end);
+      input.focus();
+      // Place cursor inside the template (before the last closing brace if exists)
+      var cursorPos = start + template.length;
+      var bracePos = template.lastIndexOf('}');
+      if (bracePos > 0) cursorPos = start + bracePos;
+      input.setSelectionRange(cursorPos, cursorPos);
+      updateLatexPreview();
+    }
+
+    /* ========================================
+       Kekule.js Composer (lazy-loaded)
+    ======================================== */
+    function loadKekule() {
+      var loadingDiv = document.getElementById('kekule-loading');
+      loadingDiv.style.display = 'flex';
+
+      // Load CSS
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/kekule@0.9.7/dist/themes/default/kekule.css';
+      document.head.appendChild(link);
+
+      // Load JS
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/kekule@0.9.7/dist/kekule.min.js';
+      script.onload = function() {
+        try {
+          Kekule.X.domReady(function() {
+            initKekuleComposer();
+            kekuleLoaded = true;
+            loadingDiv.style.display = 'none';
+          });
+        } catch (e) {
+          loadingDiv.innerHTML = '⚠️ 構造式エディタの初期化に失敗しました: ' + e.message;
+        }
+      };
+      script.onerror = function() {
+        loadingDiv.innerHTML = '❌ ライブラリの読み込みに失敗しました。ネットワーク接続を確認してください。';
+      };
+      document.head.appendChild(script);
+    }
+
+    function initKekuleComposer() {
+      var area = document.getElementById('kekule-area');
+      var composer = new Kekule.Editor.Composer(area);
+      composer.setDimension('100%', '500px');
+      composer.setEnableToolbar(true);
+      composer.setEnableStyleToolbar(true);
+      window.kekuleComposer = composer;
+    }
+
+    /* ========================================
+       Projection Tab Switching
+    ======================================== */
+    function switchProjection(type) {
+      document.querySelectorAll('.proj-tab').forEach(function(btn) { btn.classList.remove('active'); });
+      document.querySelectorAll('.proj-panel').forEach(function(panel) { panel.classList.remove('active'); });
+      document.getElementById('proj-' + type).classList.add('active');
+      var projTabs = document.querySelectorAll('.proj-tab');
+      if (type === 'fischer') projTabs[0].classList.add('active');
+      else projTabs[1].classList.add('active');
+    }
+
+    /* ========================================
+       Utility
+    ======================================== */
+    function setVal(id, val) {
+      document.getElementById(id).value = val;
+      updateFischerPreview();
+      updateHaworthPreview();
+    }
+
+    function escSvg(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    var commonGroups = ['H','OH','NH₂','CH₃','COOH','CHO','CH₂OH','F','Cl','Br','SH','OCH₃','NHCOCH₃'];
+
+    function makeGroupOptions(selected) {
+      var html = '';
+      for (var i = 0; i < commonGroups.length; i++) {
+        var g = commonGroups[i];
+        html += '<option value="' + escSvg(g) + '"' + (g === selected ? ' selected' : '') + '>' + escSvg(g) + '</option>';
+      }
+      return html;
+    }
+
+    /* ========================================
+       Fischer Projection Builder
+    ======================================== */
+    function rebuildFischerInputs() {
+      var n = parseInt(document.getElementById('fischer-carbons').value);
+      var container = document.getElementById('fischer-substituents');
+      var html = '<label style="font-size:0.85rem; font-weight:bold; color:#475569; margin-bottom:0.3rem; display:block;">各炭素の置換基</label>';
+      for (var i = 0; i < n; i++) {
+        var defaultL = (i % 2 === 0) ? 'H' : 'OH';
+        var defaultR = (i % 2 === 0) ? 'OH' : 'H';
+        html += '<div class="substituent-row">'
+          + '<span class="label-col">C' + (i + 1) + '</span>'
+          + '<select id="fischer-left-' + i + '" class="form-control" onchange="updateFischerPreview()" style="flex:1;">' + makeGroupOptions(defaultL) + '</select>'
+          + '<span style="font-weight:bold;color:#94a3b8;"> ← C → </span>'
+          + '<select id="fischer-right-' + i + '" class="form-control" onchange="updateFischerPreview()" style="flex:1;">' + makeGroupOptions(defaultR) + '</select>'
+          + '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function updateFischerPreview() {
+      var n = parseInt(document.getElementById('fischer-carbons').value);
+      var topGroup = document.getElementById('fischer-top').value || 'CHO';
+      var bottomGroup = document.getElementById('fischer-bottom').value || 'CH₂OH';
+
+      var width = 320;
+      var margin = 40;
+      var spacing = 70;
+      var armLen = 70;
+      var startY = margin + 30;
+      var totalH = startY + (n - 1) * spacing + 50;
+      var cx = width / 2;
+
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + totalH + '" style="background:white; font-family: Arial, sans-serif;">';
+
+      // Top group
+      svg += '<text x="' + cx + '" y="' + margin + '" text-anchor="middle" font-size="16" font-weight="bold">' + escSvg(topGroup) + '</text>';
+
+      // Vertical backbone (top to first carbon)
+      svg += '<line x1="' + cx + '" y1="' + (margin + 8) + '" x2="' + cx + '" y2="' + startY + '" stroke="black" stroke-width="2"/>';
+
+      for (var i = 0; i < n; i++) {
+        var y = startY + i * spacing;
+
+        // Vertical segment to next carbon (or bottom)
+        if (i < n - 1) {
+          svg += '<line x1="' + cx + '" y1="' + y + '" x2="' + cx + '" y2="' + (y + spacing) + '" stroke="black" stroke-width="2"/>';
+        }
+
+        // Horizontal crossbar
+        svg += '<line x1="' + (cx - armLen) + '" y1="' + y + '" x2="' + (cx + armLen) + '" y2="' + y + '" stroke="black" stroke-width="2"/>';
+
+        // Left substituent
+        var leftEl = document.getElementById('fischer-left-' + i);
+        var leftGroup = leftEl ? leftEl.value : 'H';
+        svg += '<text x="' + (cx - armLen - 8) + '" y="' + (y + 5) + '" text-anchor="end" font-size="14" font-weight="bold">' + escSvg(leftGroup) + '</text>';
+
+        // Right substituent
+        var rightEl = document.getElementById('fischer-right-' + i);
+        var rightGroup = rightEl ? rightEl.value : 'OH';
+        svg += '<text x="' + (cx + armLen + 8) + '" y="' + (y + 5) + '" text-anchor="start" font-size="14" font-weight="bold">' + escSvg(rightGroup) + '</text>';
+      }
+
+      // Vertical backbone (last carbon to bottom)
+      var lastY = startY + (n - 1) * spacing;
+      svg += '<line x1="' + cx + '" y1="' + lastY + '" x2="' + cx + '" y2="' + (lastY + 25) + '" stroke="black" stroke-width="2"/>';
+
+      // Bottom group
+      svg += '<text x="' + cx + '" y="' + (lastY + 42) + '" text-anchor="middle" font-size="16" font-weight="bold">' + escSvg(bottomGroup) + '</text>';
+
+      svg += '</svg>';
+      document.getElementById('fischer-preview').innerHTML = svg;
+    }
+
+    /* ========================================
+       Haworth Projection Builder
+    ======================================== */
+    function rebuildHaworthInputs() {
+      var ringType = document.getElementById('haworth-ring').value;
+      var container = document.getElementById('haworth-substituents');
+      var positions = ringType === 'pyranose'
+        ? [
+            { label: 'C1', defUp: 'OH', defDown: 'H' },
+            { label: 'C2', defUp: 'H', defDown: 'OH' },
+            { label: 'C3', defUp: 'OH', defDown: 'H' },
+            { label: 'C4', defUp: 'H', defDown: 'OH' },
+            { label: 'C5', defUp: 'H', defDown: '' },
+            { label: 'C6 (exo)', defUp: 'CH₂OH', defDown: '' }
+          ]
+        : [
+            { label: 'C1', defUp: 'OH', defDown: 'H' },
+            { label: 'C2', defUp: 'H', defDown: 'OH' },
+            { label: 'C3', defUp: 'OH', defDown: 'H' },
+            { label: 'C4', defUp: 'H', defDown: '' },
+            { label: 'C5 (exo)', defUp: 'CH₂OH', defDown: '' }
+          ];
+
+      var html = '<label style="font-size:0.85rem; font-weight:bold; color:#475569; margin-bottom:0.3rem; display:block;">各位置の置換基 (上/下)</label>';
+      for (var i = 0; i < positions.length; i++) {
+        var p = positions[i];
+        html += '<div class="substituent-row">'
+          + '<span class="label-col">' + p.label + '</span>'
+          + '<span style="font-size:0.75rem; color:#64748b;">上:</span>'
+          + '<select id="haworth-up-' + i + '" class="form-control" onchange="updateHaworthPreview()" style="flex:1;">' + makeGroupOptions(p.defUp) + '</select>'
+          + '<span style="font-size:0.75rem; color:#64748b;">下:</span>'
+          + '<select id="haworth-down-' + i + '" class="form-control" onchange="updateHaworthPreview()" style="flex:1;">' + makeGroupOptions(p.defDown) + '</select>'
+          + '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function updateHaworthPreview() {
+      var ringType = document.getElementById('haworth-ring').value;
+      var anomer = document.getElementById('haworth-anomer').value;
+
+      var w = 420, h = 360;
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" style="background:white; font-family: Arial, sans-serif;">';
+
+      if (ringType === 'pyranose') {
+        svg += drawPyranose(anomer, w, h);
+      } else {
+        svg += drawFuranose(anomer, w, h);
+      }
+
+      svg += '</svg>';
+      document.getElementById('haworth-preview').innerHTML = svg;
+    }
+
+    function getHaworthVal(prefix, idx) {
+      var el = document.getElementById(prefix + idx);
+      return el ? el.value : '';
+    }
+
+    function drawPyranose(anomer, w, h) {
+      var cx = w / 2, cy = h / 2 + 10;
+      // Ring vertices (hexagonal, perspective-like)
+      var pts = [
+        { x: cx + 90, y: cy - 55 },   // 0: O (top-right)
+        { x: cx + 110, y: cy + 25 },  // 1: C1 (right)
+        { x: cx + 60, y: cy + 85 },   // 2: C2 (bottom-right)
+        { x: cx - 60, y: cy + 85 },   // 3: C3 (bottom-left)
+        { x: cx - 110, y: cy + 25 },  // 4: C4 (left)
+        { x: cx - 90, y: cy - 55 }    // 5: C5 (top-left)
+      ];
+
+      var s = '';
+      // Draw ring edges
+      for (var i = 0; i < 6; i++) {
+        var j = (i + 1) % 6;
+        var thick = (i === 2 || i === 3) ? 4 : 2; // Front edges thicker
+        s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[j].x + '" y2="' + pts[j].y + '" stroke="black" stroke-width="' + thick + '"/>';
+      }
+
+      // O label
+      s += '<text x="' + (pts[0].x + 5) + '" y="' + (pts[0].y - 8) + '" text-anchor="middle" font-size="18" font-weight="bold" fill="#e11d48">O</text>';
+
+      // Substituents for C1-C4 (ring carbons)
+      var bondLen = 35;
+      var carbonPositions = [
+        { pt: pts[1], label: 'C1' },  // C1
+        { pt: pts[2], label: 'C2' },  // C2
+        { pt: pts[3], label: 'C3' },  // C3
+        { pt: pts[4], label: 'C4' }   // C4
+      ];
+
+      for (var ci = 0; ci < carbonPositions.length; ci++) {
+        var cp = carbonPositions[ci].pt;
+        var upVal = getHaworthVal('haworth-up-', ci);
+        var downVal = getHaworthVal('haworth-down-', ci);
+
+        // For C1, handle anomeric (alpha/beta)
+        if (ci === 0) {
+          if (anomer === 'alpha') {
+            downVal = upVal || 'OH';
+            upVal = downVal === 'OH' ? 'H' : getHaworthVal('haworth-up-', 0);
+            // Actually use the dropdown values but swap if anomeric
+            upVal = getHaworthVal('haworth-up-', 0);
+            downVal = getHaworthVal('haworth-down-', 0);
+          }
+        }
+
+        // Up bond + label
+        if (upVal) {
+          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y - bondLen) + '" stroke="black" stroke-width="2"/>';
+          s += '<text x="' + cp.x + '" y="' + (cp.y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(upVal) + '</text>';
+        }
+        // Down bond + label
+        if (downVal) {
+          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y + bondLen) + '" stroke="black" stroke-width="2"/>';
+          s += '<text x="' + cp.x + '" y="' + (cp.y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(downVal) + '</text>';
+        }
+      }
+
+      // C5 substituents (top-left position)
+      var c5up = getHaworthVal('haworth-up-', 4);
+      var c5down = getHaworthVal('haworth-down-', 4);
+      if (c5up) {
+        s += '<line x1="' + pts[5].x + '" y1="' + pts[5].y + '" x2="' + pts[5].x + '" y2="' + (pts[5].y - bondLen) + '" stroke="black" stroke-width="2"/>';
+        s += '<text x="' + pts[5].x + '" y="' + (pts[5].y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c5up) + '</text>';
+      }
+      if (c5down) {
+        s += '<line x1="' + pts[5].x + '" y1="' + pts[5].y + '" x2="' + pts[5].x + '" y2="' + (pts[5].y + bondLen) + '" stroke="black" stroke-width="2"/>';
+        s += '<text x="' + pts[5].x + '" y="' + (pts[5].y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c5down) + '</text>';
+      }
+
+      // C6 (exocyclic - attached to C5)
+      var c6up = getHaworthVal('haworth-up-', 5);
+      if (c6up) {
+        var c6x = pts[5].x - 30;
+        var c6y = pts[5].y - bondLen;
+        s += '<line x1="' + pts[5].x + '" y1="' + pts[5].y + '" x2="' + c6x + '" y2="' + c6y + '" stroke="black" stroke-width="2"/>';
+        s += '<text x="' + c6x + '" y="' + (c6y - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c6up) + '</text>';
+      }
+
+      return s;
+    }
+
+    function drawFuranose(anomer, w, h) {
+      var cx = w / 2, cy = h / 2 + 10;
+      // Pentagon ring
+      var pts = [
+        { x: cx + 80, y: cy - 60 },   // 0: O (top-right)
+        { x: cx + 110, y: cy + 30 },  // 1: C1 (right)
+        { x: cx + 40, y: cy + 90 },   // 2: C2 (bottom-right)
+        { x: cx - 40, y: cy + 90 },   // 3: C3 (bottom-left)
+        { x: cx - 110, y: cy + 30 }   // 4: C4 (left)
+      ];
+
+      var s = '';
+      // Draw ring edges
+      for (var i = 0; i < 5; i++) {
+        var j = (i + 1) % 5;
+        var thick = (i === 2 || i === 3) ? 4 : 2;
+        // Close the ring: from C4 back to O
+        if (i === 4) j = 0;
+        s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[j].x + '" y2="' + pts[j].y + '" stroke="black" stroke-width="' + thick + '"/>';
+      }
+
+      // O label
+      s += '<text x="' + (pts[0].x + 5) + '" y="' + (pts[0].y - 8) + '" text-anchor="middle" font-size="18" font-weight="bold" fill="#e11d48">O</text>';
+
+      // Substituents for C1-C3
+      var bondLen = 35;
+      for (var ci = 0; ci < 3; ci++) {
+        var cp = pts[ci + 1];
+        var upVal = getHaworthVal('haworth-up-', ci);
+        var downVal = getHaworthVal('haworth-down-', ci);
+
+        if (upVal) {
+          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y - bondLen) + '" stroke="black" stroke-width="2"/>';
+          s += '<text x="' + cp.x + '" y="' + (cp.y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(upVal) + '</text>';
+        }
+        if (downVal) {
+          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y + bondLen) + '" stroke="black" stroke-width="2"/>';
+          s += '<text x="' + cp.x + '" y="' + (cp.y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(downVal) + '</text>';
+        }
+      }
+
+      // C4 substituents
+      var c4up = getHaworthVal('haworth-up-', 3);
+      var c4down = getHaworthVal('haworth-down-', 3);
+      if (c4up) {
+        s += '<line x1="' + pts[4].x + '" y1="' + pts[4].y + '" x2="' + pts[4].x + '" y2="' + (pts[4].y - bondLen) + '" stroke="black" stroke-width="2"/>';
+        s += '<text x="' + pts[4].x + '" y="' + (pts[4].y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c4up) + '</text>';
+      }
+      if (c4down) {
+        s += '<line x1="' + pts[4].x + '" y1="' + pts[4].y + '" x2="' + pts[4].x + '" y2="' + (pts[4].y + bondLen) + '" stroke="black" stroke-width="2"/>';
+        s += '<text x="' + pts[4].x + '" y="' + (pts[4].y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c4down) + '</text>';
+      }
+
+      // C5 (exocyclic - attached to C4)
+      var c5up = getHaworthVal('haworth-up-', 4);
+      if (c5up) {
+        var c5x = pts[4].x - 30;
+        var c5y = pts[4].y - bondLen;
+        s += '<line x1="' + pts[4].x + '" y1="' + pts[4].y + '" x2="' + c5x + '" y2="' + c5y + '" stroke="black" stroke-width="2"/>';
+        s += '<text x="' + c5x + '" y="' + (c5y - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c5up) + '</text>';
+      }
+
+      return s;
+    }
+
+    /* ========================================
+       Export & Upload
+    ======================================== */
+    async function exportAndUpload() {
+      var btn = document.getElementById('export-btn');
+      var status = document.getElementById('export-status');
+      btn.disabled = true;
+      status.className = 'export-status loading';
+      status.textContent = '⏳ 画像を生成中...';
+
+      try {
+        var blob = await generatePngBlob();
+        if (!blob) throw new Error('画像の生成に失敗しました');
+
+        status.textContent = '⏳ Googleドライブにアップロード中...';
+
+        var formData = new FormData();
+        var file = new File([blob], 'formula.png', { type: 'image/png' });
+        formData.append('image_file', file);
+
+        var response = await fetch('/api/upload-image-single', { method: 'POST', body: formData });
+        var data = await response.json();
+
+        if (response.ok && data.url) {
+          status.className = 'export-status success';
+          status.textContent = '✅ アップロード完了！';
+          document.getElementById('result-url').value = data.url;
+          document.getElementById('url-result').style.display = 'block';
+        } else {
+          throw new Error(data.error || 'アップロードに失敗しました');
+        }
+      } catch (e) {
+        status.className = 'export-status error';
+        status.textContent = '❌ ' + e.message;
+      }
+      btn.disabled = false;
+    }
+
+    async function generatePngBlob() {
+      if (currentTab === 'latex') {
+        return await latexToBlob();
+      } else if (currentTab === 'structure') {
+        return await kekuleToBlob();
+      } else if (currentTab === 'projection') {
+        return await svgPreviewToBlob();
+      }
+      return null;
+    }
+
+    async function latexToBlob() {
+      var preview = document.getElementById('latex-preview');
+      if (!preview.classList.contains('has-content')) {
+        throw new Error('プレビューに数式が表示されていません。LaTeXを入力してください。');
+      }
+      var canvas = await html2canvas(preview, {
+        backgroundColor: '#ffffff',
+        scale: 3, // High resolution
+        logging: false
+      });
+      return new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+    }
+
+    async function kekuleToBlob() {
+      if (!kekuleLoaded || !window.kekuleComposer) {
+        throw new Error('構造式エディタがまだ読み込まれていません。');
+      }
+      // Try to find the canvas element inside the composer
+      var wrapper = document.getElementById('kekule-area');
+      var canvas = await html2canvas(wrapper, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false
+      });
+      return new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+    }
+
+    async function svgPreviewToBlob() {
+      // Determine which projection is active
+      var fischerActive = document.getElementById('proj-fischer').classList.contains('active');
+      var previewId = fischerActive ? 'fischer-preview' : 'haworth-preview';
+      var svgElement = document.querySelector('#' + previewId + ' svg');
+      if (!svgElement) {
+        throw new Error('プレビューに構造式が表示されていません。');
+      }
+
+      // Convert SVG to PNG via Canvas
+      var svgData = new XMLSerializer().serializeToString(svgElement);
+      var svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(svgBlob);
+
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.createElement('canvas');
+          canvas.width = img.width * 3;
+          canvas.height = img.height * 3;
+          var ctx = canvas.getContext('2d');
+          ctx.scale(3, 3);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(function(blob) { resolve(blob); }, 'image/png');
+          URL.revokeObjectURL(url);
+        };
+        img.onerror = function() {
+          URL.revokeObjectURL(url);
+          reject(new Error('SVGの画像変換に失敗しました'));
+        };
+        img.src = url;
+      });
+    }
+
+    function copyUrl() {
+      var input = document.getElementById('result-url');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(input.value).then(function() {
+        var btn = input.nextElementSibling;
+        var orig = btn.textContent;
+        btn.textContent = '✅ コピーしました！';
+        btn.style.background = '#009944';
+        setTimeout(function() { btn.textContent = orig; btn.style.background = '#005bac'; }, 2000);
+      });
+    }
+
+    /* ========================================
+       Initialization
+    ======================================== */
+    document.addEventListener('DOMContentLoaded', function() {
+      // Wait for KaTeX to load, then setup
+      setTimeout(function() {
+        rebuildFischerInputs();
+        updateFischerPreview();
+        rebuildHaworthInputs();
+        updateHaworthPreview();
+      }, 300);
+    });
+  </script>
+</body>
+</html>
