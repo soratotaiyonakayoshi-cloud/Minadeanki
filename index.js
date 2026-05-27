@@ -5,6 +5,20 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const express = require('express');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
+
+// ==========================================================
+// 🗄️ 最近の画像履歴を管理
+// ==========================================================
+const RECENT_IMAGES_PATH = path.join(__dirname, 'data', 'recent_images.json');
+function addRecentImage(url) {
+  try {
+    if (!fs.existsSync(RECENT_IMAGES_PATH)) fs.writeFileSync(RECENT_IMAGES_PATH, '[]');
+    const images = JSON.parse(fs.readFileSync(RECENT_IMAGES_PATH, 'utf8'));
+    images.unshift({ url, timestamp: new Date().toISOString() });
+    if (images.length > 50) images.length = 50; // 最大50件
+    fs.writeFileSync(RECENT_IMAGES_PATH, JSON.stringify(images, null, 2));
+  } catch (e) { console.error('Failed to save recent image:', e); }
+}
 const multer = require('multer');
 
 const client = new Client({
@@ -122,8 +136,24 @@ app.get('/', async (req, res) => {
               <div class="form-group"> <label>💡 解説（任意）</label> <textarea name="explanation" class="form-control" rows="2">${quiz.explanation || ''}</textarea> </div>
               
               <div class="form-row">
-                <div class="form-group"> <label>🖼️ 問題画像の変更</label> <input type="file" name="image_file" class="form-control" accept="image/*"> <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div> </div>
-                <div class="form-group"> <label>💡 解説画像の変更</label> <input type="file" name="exp_image_file" class="form-control" accept="image/*"> <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div> </div>
+                <div class="form-group">
+                  <label>🖼️ 問題画像の変更</label>
+                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <button type="button" onclick="openImagePool('edit_image_url_${quizId}')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
+                  </div>
+                  <input type="text" id="edit_image_url_${quizId}" name="image_url" class="form-control" placeholder="新しい画像URL (入力または選択)" style="margin-bottom:0.5rem;">
+                  <input type="file" name="image_file" class="form-control" accept="image/*">
+                  <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下（ファイルを選択した場合はURLより優先されます）</div>
+                </div>
+                <div class="form-group">
+                  <label>💡 解説画像の変更</label>
+                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <button type="button" onclick="openImagePool('edit_exp_image_url_${quizId}')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
+                  </div>
+                  <input type="text" id="edit_exp_image_url_${quizId}" name="exp_image_url" class="form-control" placeholder="新しい画像URL (入力または選択)" style="margin-bottom:0.5rem;">
+                  <input type="file" name="exp_image_file" class="form-control" accept="image/*">
+                  <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div>
+                </div>
               </div>
 
               <div style="display:flex; gap:0.5rem; margin-top:1rem;">
@@ -374,8 +404,24 @@ app.get('/', async (req, res) => {
               <div class="form-group"> <label for="explanation">💡 解説（任意）</label> <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
               
               <div class="form-row">
-                <div class="form-group"> <label for="image_file">🖼️ クイズ用の問題画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※推奨 5MB以下（大きすぎるとエラーになります）</div> </div>
-                <div class="form-group"> <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label> <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*"> <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※推奨 5MB以下（大きすぎるとエラーになります）</div> </div>
+                <div class="form-group">
+                  <label for="image_file">🖼️ クイズ用の問題画像（任意）</label>
+                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <button type="button" onclick="openImagePool('image_url')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
+                  </div>
+                  <input type="text" id="image_url" name="image_url" class="form-control" placeholder="画像URL（プールから選択、または直接入力）" style="margin-bottom:0.5rem;">
+                  <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*">
+                  <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※ファイルを選択した場合はURLより優先されます</div>
+                </div>
+                <div class="form-group">
+                  <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label>
+                  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <button type="button" onclick="openImagePool('exp_image_url')" style="padding:0.4rem 0.8rem; background:#005bac; color:#fff; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer; font-weight:bold;">🖼️ 画像プールから選ぶ</button>
+                  </div>
+                  <input type="text" id="exp_image_url" name="exp_image_url" class="form-control" placeholder="画像URL（プールから選択、または直接入力）" style="margin-bottom:0.5rem;">
+                  <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*">
+                  <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※ファイルを選択した場合はURLより優先されます</div>
+                </div>
               </div>
 
               <button type="submit" class="submit-btn">✨ 登録する</button>
@@ -430,7 +476,48 @@ app.get('/', async (req, res) => {
               btn.style.display = 'none';
             }
           }
-        </script>
+      <!-- 画像プールモーダル -->
+      <div id="image-pool-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+        <div style="background:#fff; width:90%; max-width:800px; max-height:85vh; border-radius:12px; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+          <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:#005bac;">🖼️ 画像プール (最近アップロード・作成した画像)</h3>
+            <button type="button" onclick="closeImagePool()" style="background:none; border:none; font-size:1.8rem; color:#64748b; cursor:pointer; line-height:1;">&times;</button>
+          </div>
+          <div id="image-pool-grid" style="padding:1.5rem; flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1.5rem; background:#f8fafc;">
+            <!-- 読み込み中 -->
+            <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">⏳ 読み込み中...</div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        let currentPoolTargetId = null;
+
+        function openImagePool(targetId) {
+          currentPoolTargetId = targetId;
+          document.getElementById('image-pool-modal').style.display = 'flex';
+          fetch('/api/recent-images').then(r => r.json()).then(images => {
+            const grid = document.getElementById('image-pool-grid');
+            if (images.length === 0) {
+              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。数式・構造式エディタで保存するとここに表示されます。</div>';
+              return;
+            }
+            grid.innerHTML = images.map(img => 
+              '<div onclick="selectImageFromPool(\\'' + img.url + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
+              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + img.url + '" style="max-width:100%; max-height:100%; object-fit:contain;"></div>' +
+              '<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">' + new Date(img.timestamp).toLocaleString() + '</div>' +
+              '</div>'
+            ).join('');
+          }).catch(e => {
+            document.getElementById('image-pool-grid').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
+          });
+        }
+        function closeImagePool() { document.getElementById('image-pool-modal').style.display = 'none'; }
+        function selectImageFromPool(url) {
+          if (currentPoolTargetId) { document.getElementById(currentPoolTargetId).value = url; }
+          closeImagePool();
+        }
+      </script>
       </body>
       </html>
     `);
@@ -586,6 +673,7 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
     
     // GAS側から { url: "https://drive.google.com/..." } が返ってくる
     if (response.data && response.data.url) {
+      addRecentImage(response.data.url);
       res.json({ url: response.data.url });
     } else {
       throw new Error("URLが返却されませんでした");
@@ -601,8 +689,8 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
 // ==========================================================
 app.post('/add-quiz', quizUploadFields, async (req, res) => {
   try {
-    const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
-    let postData = { action: 'add', genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '' };
+    const { genre, sub_genre, difficulty, question, answer, explanation, image_url, exp_image_url } = req.body;
+    let postData = { action: 'add', genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '', image: image_url || '', exp_image: exp_image_url || '' };
 
     if (req.files && req.files['image_file']) {
       const file = req.files['image_file'][0];
@@ -646,8 +734,8 @@ app.post('/add-quiz', quizUploadFields, async (req, res) => {
 // ==========================================================
 app.post('/edit-quiz', quizUploadFields, async (req, res) => {
   try {
-    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image } = req.body;
-    let postData = { action: 'edit', id, genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '', image: old_image || '', exp_image: old_exp_image || '' };
+    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image, image_url, exp_image_url } = req.body;
+    let postData = { action: 'edit', id, genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '', image: image_url || old_image || '', exp_image: exp_image_url || old_exp_image || '' };
 
     if (req.files && req.files['image_file']) {
       const file = req.files['image_file'][0];
@@ -797,8 +885,48 @@ app.get('/csv-generator', (req, res) => {
         </div>
       </div>
 
+      <!-- 画像プールモーダル -->
+      <div id="image-pool-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+        <div style="background:#fff; width:90%; max-width:800px; max-height:85vh; border-radius:12px; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+          <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:#005bac;">🖼️ 画像プール (最近アップロード・作成した画像)</h3>
+            <button type="button" onclick="closeImagePool()" style="background:none; border:none; font-size:1.8rem; color:#64748b; cursor:pointer; line-height:1;">&times;</button>
+          </div>
+          <div id="image-pool-grid" style="padding:1.5rem; flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1.5rem; background:#f8fafc;">
+            <!-- 読み込み中 -->
+            <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">⏳ 読み込み中...</div>
+          </div>
+        </div>
+      </div>
+
       <script>
         let quizList = [];
+        let currentPoolTargetId = null;
+
+        function openImagePool(targetId) {
+          currentPoolTargetId = targetId;
+          document.getElementById('image-pool-modal').style.display = 'flex';
+          fetch('/api/recent-images').then(r => r.json()).then(images => {
+            const grid = document.getElementById('image-pool-grid');
+            if (images.length === 0) {
+              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。</div>';
+              return;
+            }
+            grid.innerHTML = images.map(img => 
+              '<div onclick="selectImageFromPool(\\'' + img.url + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
+              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + img.url + '" style="max-width:100%; max-height:100%; object-fit:contain;"></div>' +
+              '<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">' + new Date(img.timestamp).toLocaleString() + '</div>' +
+              '</div>'
+            ).join('');
+          }).catch(e => {
+            document.getElementById('image-pool-grid').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
+          });
+        }
+        function closeImagePool() { document.getElementById('image-pool-modal').style.display = 'none'; }
+        function selectImageFromPool(url) {
+          if (currentPoolTargetId) { document.getElementById(currentPoolTargetId).value = url; }
+          closeImagePool();
+        }
 
   // 🌟 画像を選んだ瞬間に裏側でGASへアップロードしてURLをもらう
         async function uploadImageAsync(fieldName) {
