@@ -533,31 +533,115 @@ app.get('/how-to-use', (req, res) => {
 });
 
 // ==========================================================
-// 🖼️ CSVジェネレーター用：画像だけを先行アップロードするAPI
+// 🖼️ 1. ジェネレータ用：画像を先行してGASに送り、URLをもらうAPI
 // ==========================================================
-app.post('/api/upload-image-single', quizUploadFields, (req, res) => {
+app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
   try {
-    let uploadedFilename = '';
+    let file = null;
+    if (req.files && req.files['image_file']) file = req.files['image_file'][0];
+    if (req.files && req.files['exp_image_file']) file = req.files['exp_image_file'][0];
+
+    if (!file) return res.status(400).json({ error: '画像ファイルが見つかりません' });
+
+    // Base64に変換してGASに投げる
+    const base64Data = fs.readFileSync(file.path, 'base64');
+    const postData = {
+      action: 'upload_image_only',
+      image_base64: base64Data,
+      image_mime: file.mimetype,
+      image_name: file.originalname
+    };
     
-    // 問題画像が送られてきた場合
-    if (req.files && req.files['image_file']) {
-      uploadedFilename = req.files['image_file'][0].filename;
-    }
-    // 解説画像が送られてきた場合
-    if (req.files && req.files['exp_image_file']) {
-      uploadedFilename = req.files['exp_image_file'][0].filename;
-    }
+    // 一時ファイルは削除
+    fs.unlinkSync(file.path);
 
-    if (!uploadedFilename) {
-      return res.status(400).json({ error: '画像ファイルが見つかりません' });
+    // GASに送信して、完成したGoogleドライブのURLを受け取る
+    const response = await axios.post(process.env.GAS_WEB_APP_URL, postData);
+    
+    // GAS側から { url: "https://drive.google.com/..." } が返ってくる
+    if (response.data && response.data.url) {
+      res.json({ url: response.data.url });
+    } else {
+      throw new Error("URLが返却されませんでした");
     }
-
-    // 保存された実際のファイル名をフロント（画面）に返す
-    res.json({ filename: uploadedFilename });
   } catch (error) {
     console.error('先行アップロードエラー:', error);
     res.status(500).json({ error: 'サーバー側で画像保存に失敗しました' });
   }
+});
+
+// ==========================================================
+// 🌟 2. 一問ずつ追加タブからの送信処理（単発POST）
+// ==========================================================
+app.post('/add-quiz', quizUploadFields, async (req, res) => {
+  try {
+    const { genre, sub_genre, difficulty, question, answer, explanation } = req.body;
+    let postData = { action: 'add', genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '' };
+
+    if (req.files && req.files['image_file']) {
+      const file = req.files['image_file'][0];
+      postData.image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.image_mime = file.mimetype; postData.image_name = file.originalname;
+      fs.unlinkSync(file.path);
+    }
+    if (req.files && req.files['exp_image_file']) {
+      const file = req.files['exp_image_file'][0];
+      postData.exp_image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.exp_image_mime = file.mimetype; postData.exp_image_name = file.originalname;
+      fs.unlinkSync(file.path);
+    }
+
+    await axios.post(process.env.GAS_WEB_APP_URL, postData);
+    res.send(`<div style="background:#009944; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>🎉 クイズを登録しました！</h1><p>画像はドライブの「クイズ用」フォルダに保存されました。</p><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
+  } catch (error) { res.send('<h2 style="text-align:center;">クイズ登録中にエラーが発生しました。</h2>'); }
+});
+
+// ==========================================================
+// 🌟 3. 既存問題の編集時の送信処理（上書きPOST）
+// ==========================================================
+app.post('/edit-quiz', quizUploadFields, async (req, res) => {
+  try {
+    const { id, genre, sub_genre, difficulty, question, answer, explanation, old_image, old_exp_image } = req.body;
+    let postData = { action: 'edit', id, genre, sub_genre: sub_genre || '', difficulty, question, answer, explanation: explanation || '', image: old_image || '', exp_image: old_exp_image || '' };
+
+    if (req.files && req.files['image_file']) {
+      const file = req.files['image_file'][0];
+      postData.image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.image_mime = file.mimetype; postData.image_name = file.originalname;
+      fs.unlinkSync(file.path);
+    }
+    if (req.files && req.files['exp_image_file']) {
+      const file = req.files['exp_image_file'][0];
+      postData.exp_image_base64 = fs.readFileSync(file.path, 'base64');
+      postData.exp_image_mime = file.mimetype; postData.exp_image_name = file.originalname;
+      fs.unlinkSync(file.path);
+    }
+
+    await axios.post(process.env.GAS_WEB_APP_URL, postData);
+    res.send(`<div style="background:#005bac; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;"><h1>💾 クイズを上書き保存しました！</h1><script>setTimeout(() => { window.location.href = '/'; }, 1500);</script></div>`);
+  } catch (error) { res.send('<h2 style="text-align:center;">クイズ編集中にエラーが発生しました。</h2>'); }
+});
+
+// ==========================================================
+// 🌟 4. CSV登録画面（/import-csv等）からの一括処理
+// ==========================================================
+app.post('/save-csv-quiz', async (req, res) => {
+  try {
+    const { quizzes } = req.body; 
+    if (!quizzes || !Array.isArray(quizzes)) return res.status(400).send('データ不正');
+
+    for (const quiz of quizzes) {
+      // CSVジェネレータで事前に取得したURLが quiz.image や quiz.exp_image に入っている
+      let postData = {
+        action: 'add',
+        genre: quiz.genre, sub_genre: quiz.sub_genre || '', difficulty: quiz.difficulty || '3',
+        question: quiz.question, answer: quiz.answer, explanation: quiz.explanation || '',
+        image: quiz.image || '', exp_image: quiz.exp_image || '' 
+      };
+      await axios.post(process.env.GAS_WEB_APP_URL, postData);
+    }
+    res.json({ success: true, message: `${quizzes.length}件を一括登録しました！` });
+  } catch (error) { res.status(500).json({ success: false }); }
 });
 
 // 💻 かんたん問題セットメーカー（画像先行アップロード対応版）
@@ -671,7 +755,7 @@ app.get('/csv-generator', (req, res) => {
       <script>
         let quizList = [];
 
-        // 🌟 画像を選んだ瞬間に裏側でサーバーへアップロードする魔法の関数
+  // 🌟 画像を選んだ瞬間に裏側でGASへアップロードしてURLをもらう
         async function uploadImageAsync(fieldName) {
           const fileInput = fieldName === 'image_file' ? document.getElementById('g_img_file') : document.getElementById('g_exp_img_file');
           const statusDiv = fieldName === 'image_file' ? document.getElementById('g_img_status') : document.getElementById('g_exp_img_status');
@@ -680,28 +764,31 @@ app.get('/csv-generator', (req, res) => {
           if (!fileInput.files || fileInput.files.length === 0) return;
 
           statusDiv.className = 'img-status loading';
-          statusDiv.textContent = '⏳ サーバーへアップロード中...';
+          statusDiv.textContent = '⏳ ドライブの「クイズ用」フォルダに保存中...';
 
           const formData = new FormData();
           formData.append(fieldName, fileInput.files[0]);
 
           try {
-            const response = await fetch('/api/upload-image-single', {
-              method: 'POST',
-              body: formData
-            });
+            const response = await fetch('/api/upload-image-single', { method: 'POST', body: formData });
             const data = await response.json();
 
-            if (response.ok && data.filename) {
-              hiddenInput.value = data.filename; // 隠し欄に生成されたファイル名を保存
+            // 💡 サーバーからファイル名ではなく「ドライブのURL」が直接返ってくる
+            if (response.ok && data.url) {
+              hiddenInput.value = data.url; // CSVには直接URLを埋め込む
               statusDiv.className = 'img-status success';
-              statusDiv.textContent = '✅ アップロード完了！(' + data.filename + ')';
+              statusDiv.textContent = '✅ 保存完了！(URL取得済)';
             } else {
-              alert('アップロードに失敗しました: ' + (data.error || '不明なエラー'));
-              statusDiv.className = 'img-status';
-              statusDiv.textContent = '❌ 失敗しました';
-              fileInput.value = '';
+              throw new Error(data.error || '不明なエラー');
             }
+          } catch (error) {
+            console.error(error);
+            alert('アップロードに失敗しました。');
+            statusDiv.className = 'img-status';
+            statusDiv.textContent = '❌ 失敗しました';
+            fileInput.value = '';
+          }
+        }
           } catch (error) {
             console.error(error);
             alert('通信エラーが発生しました。');
