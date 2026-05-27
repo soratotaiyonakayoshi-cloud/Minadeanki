@@ -514,8 +514,16 @@ app.get('/', async (req, res) => {
                 if (!isNaN(d.getTime())) imgDate = d.toLocaleString('ja-JP');
               }
               var label = imgName || imgDate || '画像';
+              
+              // Google Driveの画像URL変換（サムネイル専用エンドポイントを使ってCORS/Cookieエラーを回避）
+              var displayUrl = imgUrl;
+              var match = imgUrl.match(/id=([a-zA-Z0-9_-]+)/);
+              if (match && match[1]) {
+                displayUrl = 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w800';
+              }
+              
               return '<div onclick="selectImageFromPool(\\'' + imgUrl.replace(/'/g, "\\\\'") + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
-                '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + imgUrl + '" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.parentElement.innerHTML=\\'<span style=padding:1rem;color:#94a3b8>読込失敗</span>\\'"></div>' +
+                '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + displayUrl + '" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.parentElement.innerHTML=\\'<span style=padding:1rem;color:#94a3b8;font-size:0.8rem;text-align:center;>読込ブロック<br>(Drive設定確認)</span>\\'"></div>' +
                 '<div style="font-size:0.7rem; color:#94a3b8; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + label + '</div>' +
                 '</div>';
             }).join('');
@@ -980,16 +988,32 @@ app.get('/csv-generator', (req, res) => {
           document.getElementById('image-pool-modal').style.display = 'flex';
           fetch('/api/recent-images').then(r => r.json()).then(images => {
             const grid = document.getElementById('image-pool-grid');
-            if (images.length === 0) {
-              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。</div>';
+            if (!images || images.length === 0) {
+              grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。数式・構造式エディタで保存するとここに表示されます。</div>';
               return;
             }
-            grid.innerHTML = images.map(img => 
-              '<div onclick="selectImageFromPool(\\'' + img.url + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
-              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + img.url + '" style="max-width:100%; max-height:100%; object-fit:contain;"></div>' +
-              '<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">' + new Date(img.timestamp).toLocaleString() + '</div>' +
-              '</div>'
-            ).join('');
+            grid.innerHTML = images.map(function(img) {
+              var imgUrl = typeof img === 'string' ? img : img.url;
+              var imgName = (typeof img === 'object' && img.name) ? img.name : '';
+              var imgDate = '';
+              if (typeof img === 'object' && img.timestamp) {
+                var d = new Date(img.timestamp);
+                if (!isNaN(d.getTime())) imgDate = d.toLocaleString('ja-JP');
+              }
+              var label = imgName || imgDate || '画像';
+              
+              // Google Driveの画像URL変換（サムネイル専用エンドポイントを使ってCORS/Cookieエラーを回避）
+              var displayUrl = imgUrl;
+              var match = imgUrl.match(/id=([a-zA-Z0-9_-]+)/);
+              if (match && match[1]) {
+                displayUrl = 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w800';
+              }
+              
+              return '<div onclick="selectImageFromPool(\\'' + imgUrl.replace(/'/g, "\\\\'") + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
+                '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + displayUrl + '" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.parentElement.innerHTML=\\'<span style=padding:1rem;color:#94a3b8;font-size:0.8rem;text-align:center;>読込ブロック<br>(Drive設定確認)</span>\\'"></div>' +
+                '<div style="font-size:0.7rem; color:#94a3b8; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + label + '</div>' +
+                '</div>';
+            }).join('');
           }).catch(e => {
             document.getElementById('image-pool-grid').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
           });
