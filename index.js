@@ -541,7 +541,21 @@ app.get('/how-to-use', (req, res) => {
 // 🧪 数式・構造式エディタ
 // ==========================================================
 app.get('/formula-editor', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'formula-editor.html'));
+  try {
+    const htmlPath = path.join(__dirname, 'public', 'formula-editor.html');
+    const html = fs.readFileSync(htmlPath, 'utf8');
+    res.type('html').send(html);
+  } catch (e) {
+    console.error('formula-editor.html not found:', e.message);
+    res.send(`
+      <div style="background:#e11d48; color:#fff; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif; text-align:center; padding:2rem;">
+        <h1>⚠️ エディタファイルが見つかりません</h1>
+        <p>public/formula-editor.html をプロジェクトのルートディレクトリに配置してください。</p>
+        <p style="font-size:0.85rem; opacity:0.8;">エラー: ${e.message}</p>
+        <a href="/" style="margin-top:1rem; color:#fff; font-weight:bold;">← ダッシュボードに戻る</a>
+      </div>
+    `);
+  }
 });
 
 // ==========================================================
