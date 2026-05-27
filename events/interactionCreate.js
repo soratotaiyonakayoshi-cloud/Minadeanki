@@ -78,24 +78,19 @@ async function sendGameQuestion(thread, gameData) {
 
   let modeInfo = gameData.mode === 'survival' ? `❤️ あなたの残りライフに注意！` : `🏆 早押し高得点チャンス！`;
   
-  let imageContent = '';
-  let quizAttachment = null; 
-
-  // ⭐【修正箇所1】GASプロキシURLを経由するように修正
-  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-    imageContent = `\n\n🖼️ **【画像問題】**`;
-    const encodedUrl = encodeURIComponent(currentQuiz.image);
-    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' });
-  }
+  // 🌟 GoogleドライブのURLはEmbedに直接セット（プロキシ不要）
+  const imageEmbed = currentQuiz.image && currentQuiz.image.startsWith('http') ? currentQuiz.image : null;
+  const imageContent = imageEmbed ? `\n\n🖼️ **【画像問題】**` : '';
 
   const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / 全 ${gameData.maxQuestions} 問**\n⏱️ 制限時間: **${gameData.timeLimit}秒** ➜ [${gameData.mode === 'survival' ? 'サバイバルモード' : '通常スコアモード'}]\n━━━━━━━━━━━━━━━━━━━━━━━━\n${modeInfo}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
   };
 
-  if (quizAttachment) {
-    sendOptions.files = [quizAttachment];
+  if (imageEmbed) {
+    const { EmbedBuilder } = require('discord.js');
+    const imgEmbed = new EmbedBuilder().setImage(imageEmbed);
+    sendOptions.embeds = [imgEmbed];
   }
 
   try {
@@ -170,24 +165,19 @@ async function exposeBettingQuestion(thread, gameData) {
   const row = new ActionRowBuilder().addComponents(buttons);
   gameData.roundStartTime = Date.now();
 
-  let imageContent = '';
-  let quizAttachment = null; 
-
-  // ⭐【修正箇所2】ベッティングモード用出題でもGASプロキシURLを経由するように修正
-  if (currentQuiz.image && currentQuiz.image.startsWith('http')) {
-    imageContent = `\n\n🖼️ **【画像問題】**`;
-    const encodedUrl = encodeURIComponent(currentQuiz.image);
-    const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-    quizAttachment = new AttachmentBuilder(proxyImageUrl, { name: 'quiz_image.png' });
-  }
+  // 🌟 GoogleドライブのURLはEmbedに直接セット（プロキシ不要）
+  const imageEmbed = currentQuiz.image && currentQuiz.image.startsWith('http') ? currentQuiz.image : null;
+  const imageContent = imageEmbed ? `\n\n🖼️ **【画像問題】**` : '';
 
   const sendOptions = {
     content: `━━━━━━━━━━━━━━━━━━━━━━━━\n🔥 **第 ${gameData.currentRound + 1} 問 / クイズオープン！**\n⏱️ 制限時間: **${gameData.timeLimit}秒**\n━━━━━━━━━━━━━━━━━━━━━━━━\n${betStatusText}\n\n📝 **【問題】** [${currentQuiz.genre}]\n## ${currentQuiz.question}${imageContent}`,
     components: [row]
   };
 
-  if (quizAttachment) {
-    sendOptions.files = [quizAttachment];
+  if (imageEmbed) {
+    const { EmbedBuilder } = require('discord.js');
+    const imgEmbed = new EmbedBuilder().setImage(imageEmbed);
+    sendOptions.embeds = [imgEmbed];
   }
 
   try {
