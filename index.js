@@ -674,12 +674,21 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
     // GASに送信して、完成したGoogleドライブのURLを受け取る
     const response = await axios.post(process.env.GAS_WEB_APP_URL, postData);
     
-    // GAS側から { url: "https://drive.google.com/..." } が返ってくる
-    if (response.data && response.data.url) {
-      addRecentImage(response.data.url);
-      res.json({ url: response.data.url });
+    let responseData = response.data;
+    if (typeof responseData === 'string') {
+      try {
+        responseData = JSON.parse(responseData);
+      } catch (e) {
+        const match = responseData.match(/"url"\s*:\s*"([^"]+)"/);
+        if (match && match[1]) responseData = { url: match[1] };
+      }
+    }
+    
+    if (responseData && responseData.url) {
+      addRecentImage(responseData.url);
+      res.json({ url: responseData.url });
     } else {
-      throw new Error("URLが返却されませんでした");
+      throw new Error("URLが返却されませんでした: " + JSON.stringify(response.data));
     }
   } catch (error) {
     console.error('先行アップロードエラー:', error);
