@@ -443,10 +443,15 @@ module.exports = {
       // 💡 ダッシュボードのカスタム値をメニューに維持する機能
       const timeOpts = [
         { label: '瞬発力特化！ (5秒)', value: '5' },
+        { label: '少し早め (10秒)', value: '10' },
         { label: '標準モード (15秒)', value: '15' },
-        { label: 'じっくり思考 (30秒)', value: '30' }
+        { label: '少し長め (20秒)', value: '20' },
+        { label: 'じっくり思考 (30秒)', value: '30' },
+        { label: '超長考 (60秒)', value: '60' }
       ];
-      if (![5, 15, 30].includes(game.timeLimit)) timeOpts.push({ label: `⚙️ カスタム設定 (${game.timeLimit}秒)`, value: String(game.timeLimit) });
+      if (!timeOpts.some(opt => opt.value === String(game.timeLimit))) {
+        timeOpts.push({ label: `⚙️ カスタム設定 (${game.timeLimit}秒)`, value: String(game.timeLimit) });
+      }
       timeOpts.forEach(o => o.default = o.value === String(game.timeLimit));
       
       const timeMenu = new StringSelectMenuBuilder()
@@ -455,11 +460,15 @@ module.exports = {
         .addOptions(timeOpts);
 
       const ruleOpts = [
-        { label: 'サクッと3問勝負', value: '3' },
-        { label: 'たっぷり5問耐久レース', value: '5' },
-        { label: 'ガチ勉強会（10問）', value: '10' }
+        { label: 'サクッと (3問)', value: '3' },
+        { label: '標準 (5問)', value: '5' },
+        { label: '少し長め (7問)', value: '7' },
+        { label: 'ガチ勉強会 (10問)', value: '10' },
+        { label: '耐久レース (20問)', value: '20' }
       ];
-      if (![3, 5, 10].includes(game.maxQuestions)) ruleOpts.push({ label: `⚙️ カスタム設定 (${game.maxQuestions}問)`, value: String(game.maxQuestions) });
+      if (!ruleOpts.some(opt => opt.value === String(game.maxQuestions))) {
+        ruleOpts.push({ label: `⚙️ カスタム設定 (${game.maxQuestions}問)`, value: String(game.maxQuestions) });
+      }
       ruleOpts.forEach(o => o.default = o.value === String(game.maxQuestions));
 
       const ruleMenu = new StringSelectMenuBuilder()
