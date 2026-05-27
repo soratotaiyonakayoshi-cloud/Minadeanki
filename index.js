@@ -687,6 +687,19 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
 });
 
 // ==========================================================
+// 🖼️ 画像プール取得API
+// ==========================================================
+app.get('/api/recent-images', (req, res) => {
+  try {
+    if (!fs.existsSync(RECENT_IMAGES_PATH)) return res.json([]);
+    const images = JSON.parse(fs.readFileSync(RECENT_IMAGES_PATH, 'utf8'));
+    res.json(images);
+  } catch (e) {
+    res.json([]);
+  }
+});
+
+// ==========================================================
 // 🌟 2. 一問ずつ追加タブからの送信処理（単発POST - エラー検知版）
 // ==========================================================
 app.post('/add-quiz', quizUploadFields, async (req, res) => {
