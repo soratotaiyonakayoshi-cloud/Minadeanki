@@ -331,13 +331,14 @@
         <button class="export-btn" id="export-btn" onclick="exportAndUpload()">🖼️ 画像をGoogleドライブに保存</button>
         <span class="export-status" id="export-status"></span>
       </div>
-      <div class="url-result" id="url-result">
-        <label>✅ 生成されたURL:</label>
-        <div class="url-row">
-          <input type="text" id="result-url" readonly>
-          <button onclick="copyUrl()">📋 コピー</button>
-        </div>
-        <p class="url-hint">↑ このURLをクイズ追加フォームの「画像URL」欄に貼り付けてください</p>
+      <div class="url-result" id="url-result" style="display:none; margin-top: 1rem; padding: 1.5rem; background: #f0fdf4; border: 2px dashed #009944; border-radius: 8px; text-align: center;">
+        <h4 style="color: #009944; margin: 0 0 1rem 0; font-size: 1.2rem;">✅ 画像プールに保存されました！</h4>
+        <p style="color: #475569; font-weight: bold; margin-bottom: 1.5rem;">
+          URLのコピーは不要です。ダッシュボードの「🖼️ 画像プールから選ぶ」ボタンから、今作成した画像を選択できます。
+        </p>
+        <a href="/" style="display: inline-block; padding: 0.8rem 2rem; background: #005bac; color: white; text-decoration: none; font-weight: bold; border-radius: 8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,91,172,0.3);">
+          ← ダッシュボードに戻る
+        </a>
       </div>
     </div>
   </div>
@@ -418,15 +419,16 @@
       var script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/kekule@0.9.7/dist/kekule.min.js';
       script.onload = function() {
-        try {
-          Kekule.X.domReady(function() {
+        setTimeout(function() {
+          try {
             initKekuleComposer();
             kekuleLoaded = true;
             loadingDiv.style.display = 'none';
-          });
-        } catch (e) {
-          loadingDiv.innerHTML = '⚠️ 構造式エディタの初期化に失敗しました: ' + e.message;
-        }
+          } catch (e) {
+            loadingDiv.innerHTML = '⚠️ 構造式エディタの初期化に失敗しました: ' + e.message;
+            console.error('Kekule init error:', e);
+          }
+        }, 100);
       };
       script.onerror = function() {
         loadingDiv.innerHTML = '❌ ライブラリの読み込みに失敗しました。ネットワーク接続を確認してください。';
@@ -788,7 +790,6 @@
         if (response.ok && data.url) {
           status.className = 'export-status success';
           status.textContent = '✅ アップロード完了！';
-          document.getElementById('result-url').value = data.url;
           document.getElementById('url-result').style.display = 'block';
         } else {
           throw new Error(data.error || 'アップロードに失敗しました');
@@ -874,18 +875,7 @@
       });
     }
 
-    function copyUrl() {
-      var input = document.getElementById('result-url');
-      input.select();
-      input.setSelectionRange(0, 99999);
-      navigator.clipboard.writeText(input.value).then(function() {
-        var btn = input.nextElementSibling;
-        var orig = btn.textContent;
-        btn.textContent = '✅ コピーしました！';
-        btn.style.background = '#009944';
-        setTimeout(function() { btn.textContent = orig; btn.style.background = '#005bac'; }, 2000);
-      });
-    }
+
 
     /* ========================================
        Initialization
