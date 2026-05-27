@@ -692,7 +692,7 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
     }
   } catch (error) {
     console.error('先行アップロードエラー:', error);
-    res.status(500).json({ error: 'サーバー側で画像保存に失敗しました' });
+    res.status(500).json({ error: 'GASとの通信エラー: ' + (error.message || String(error)) });
   }
 });
 
