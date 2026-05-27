@@ -137,7 +137,7 @@ module.exports = {
     const isThread = interaction.channel.isThread();
 
     try {
-      if (isThread) {
+      if (isThread || !interaction.channel.threads) {
         await interaction.channel.send(messageOptions);
         await interaction.editReply({ content: '✅ 新しい問題を出題しました！' });
       } else {
