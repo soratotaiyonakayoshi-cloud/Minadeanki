@@ -12,7 +12,8 @@ const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 async function getQuizDataFromSheets() {
   try {
-    const response = await axios.get(SPREADSHEET_CSV_URL, {
+    const separator = SPREADSHEET_CSV_URL.includes('?') ? '&' : '?';
+    const response = await axios.get(`${SPREADSHEET_CSV_URL}${separator}t=${Date.now()}`, {
       headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': '0' }
     });
     return parse(response.data, { columns: true, skip_empty_lines: true });
