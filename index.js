@@ -91,30 +91,6 @@ app.get('/', async (req, res) => {
     const currentSettings = settingsResponse.data || { playTime: 20, questionCount: 5 };
     
     const uniqueGenres = Array.from(new Set(allQuizData.map(q => q.genre || '未分類')));
-
-    const latexUiHtml = `
-      <div class="latex-tool" style="background:#f8fafc; padding:1.2rem; border-radius:8px; margin-bottom:1.5rem; border:2px dashed #005bac;">
-        <div style="font-weight:bold; color:#005bac; margin-bottom:0.8rem; font-size:1.05rem;">🧮 数式・化学式ジェネレーター（画像アップロード不要！）</div>
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.8rem;">
-          <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\ce{H2O}')">水(H2O)</button>
-          <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\ce{CO2}')">二酸化炭素</button>
-          <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\ce{2H2 + O2 -> 2H2O}')">化学反応式</button>
-          <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\frac{1}{2}')">分数</button>
-          <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\sqrt{a^2 + b^2}')">ルート</button>
-        </div>
-        <textarea class="form-control latex-input" rows="2" placeholder="LaTeX形式で入力... (例: \\ce{H2O})"></textarea>
-        <div style="margin-top:0.8rem; text-align:center; min-height:80px; background:white; border:1px solid #cbd5e1; border-radius:6px; display:flex; align-items:center; justify-content:center; padding: 10px;">
-          <img class="latex-preview" style="max-height:100px; display:none;" />
-          <span class="latex-placeholder" style="color:#94a3b8; font-size:0.9rem;">数式を入力するとプレビューが表示されます</span>
-        </div>
-        <div style="display:flex; gap:0.8rem; margin-top:1rem;">
-          <button type="button" class="save-btn" style="padding:0.6rem; font-size:0.9rem;" onclick="applyLatex(this, 'image')">🖼️ 問題画像としてセット</button>
-          <button type="button" class="save-btn" style="padding:0.6rem; font-size:0.9rem; background:#005bac;" onclick="applyLatex(this, 'exp_image')">💡 解説画像としてセット</button>
-        </div>
-        <div class="latex-status" style="margin-top:0.8rem; font-size:0.85rem; font-weight:bold; color:#009944;"></div>
-      </div>
-    `;
-
     let tabsHtml = `<button class="tab-btn active" onclick="filterCards('すべて', this)">すべて</button>`;
     for (const genre of uniqueGenres) {
       tabsHtml += `<button class="tab-btn" onclick="filterCards('${genre}', this)">${genre}</button>`;
@@ -149,9 +125,6 @@ app.get('/', async (req, res) => {
                 <div class="form-group"> <label>🖼️ 問題画像の変更</label> <input type="file" name="image_file" class="form-control" accept="image/*"> <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div> </div>
                 <div class="form-group"> <label>💡 解説画像の変更</label> <input type="file" name="exp_image_file" class="form-control" accept="image/*"> <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div> </div>
               </div>
-              <input type="hidden" name="latex_image_url" class="latex-image-hidden">
-              <input type="hidden" name="latex_exp_image_url" class="latex-exp-image-hidden">
-              ${latexUiHtml}
 
               <div style="display:flex; gap:0.5rem; margin-top:1rem;">
                 <button type="submit" class="save-btn">💾 上書き保存</button>
@@ -366,6 +339,10 @@ app.get('/', async (req, res) => {
             <p>パソコンやExcelが苦手なメンバーでも、ゲーム感覚で新しい問題をまとめて作れる安心ページです。</p>
             
             <div class="csv-flex">
+              <a href="/formula-editor" class="csv-maker-link" style="background: linear-gradient(135deg, #7c3aed, #2563eb); border-color: #7c3aed;">
+                🧪 数式・構造式エディタを開く（化学式・Fischer式・Haworth式）
+              </a>
+
               <a href="/csv-generator" class="csv-maker-link">
                 📝 メンバー用：問題セットをつくってみる！
               </a>
@@ -400,9 +377,6 @@ app.get('/', async (req, res) => {
                 <div class="form-group"> <label for="image_file">🖼️ クイズ用の問題画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※推奨 5MB以下（大きすぎるとエラーになります）</div> </div>
                 <div class="form-group"> <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label> <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*"> <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※推奨 5MB以下（大きすぎるとエラーになります）</div> </div>
               </div>
-              <input type="hidden" name="latex_image_url" class="latex-image-hidden">
-              <input type="hidden" name="latex_exp_image_url" class="latex-exp-image-hidden">
-              ${latexUiHtml}
 
               <button type="submit" class="submit-btn">✨ 登録する</button>
             </form>
@@ -426,46 +400,6 @@ app.get('/', async (req, res) => {
         </div>
 
         <script>
-          function insertLatex(btn, text) {
-            const container = btn.closest('.latex-tool');
-            const input = container.querySelector('.latex-input');
-            input.value = text;
-            updateLatexPreview(container);
-          }
-          function updateLatexPreview(container) {
-            const input = container.querySelector('.latex-input').value.trim();
-            const preview = container.querySelector('.latex-preview');
-            const placeholder = container.querySelector('.latex-placeholder');
-            if (input) {
-              preview.src = 'https://latex.codecogs.com/png.image?\\dpi{150}\\bg_white\\huge ' + encodeURIComponent(input);
-              preview.style.display = 'block';
-              placeholder.style.display = 'none';
-            } else {
-              preview.style.display = 'none';
-              placeholder.style.display = 'block';
-            }
-          }
-          document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('latex-input')) {
-              updateLatexPreview(e.target.closest('.latex-tool'));
-            }
-          });
-          function applyLatex(btn, targetType) {
-            const container = btn.closest('.latex-tool');
-            const preview = container.querySelector('.latex-preview');
-            if (preview.style.display === 'none') return alert('数式を入力してください');
-            const url = preview.src;
-            const status = container.querySelector('.latex-status');
-            
-            if (targetType === 'image') {
-              container.querySelector('.latex-image-hidden').value = url;
-              status.innerHTML = '✅ <b>問題画像</b> としてURLをセットしました！ (※ファイル選択は空にして保存してください)';
-            } else {
-              container.querySelector('.latex-exp-image-hidden').value = url;
-              status.innerHTML = '✅ <b>解説画像</b> としてURLをセットしました！ (※ファイル選択は空にして保存してください)';
-            }
-          }
-
           function toggleAccordion() {
             const accordion = document.getElementById('settingsAccordion');
             accordion.classList.toggle('open');
@@ -601,6 +535,13 @@ app.get('/how-to-use', (req, res) => {
     </body>
     </html>
   `);
+});
+
+// ==========================================================
+// 🧪 数式・構造式エディタ
+// ==========================================================
+app.get('/formula-editor', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'formula-editor.html'));
 });
 
 // ==========================================================
@@ -811,29 +752,8 @@ app.get('/csv-generator', (req, res) => {
             <div class="form-group"> <label>✅ 正解の答え *</label> <input type="text" id="g_answer" class="form-control" placeholder="正解となる単語" required> </div>
             <div class="form-group"> <label>💡 解説（任意）</label> <textarea id="g_exp" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
             
-            <input type="hidden" id="g_img_filename" class="latex-image-hidden" value="">
-            <input type="hidden" id="g_exp_img_filename" class="latex-exp-image-hidden" value="">
-
-            <div class="latex-tool" style="background:#f8fafc; padding:1.2rem; border-radius:8px; margin-bottom:1.5rem; border:2px dashed #005bac;">
-              <div style="font-weight:bold; color:#005bac; margin-bottom:0.8rem; font-size:1.05rem;">🧮 数式・化学式ジェネレーター（画像アップロード不要！）</div>
-              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.8rem;">
-                <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\ce{H2O}')">水(H2O)</button>
-                <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\ce{CO2}')">二酸化炭素</button>
-                <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\ce{2H2 + O2 -> 2H2O}')">化学反応式</button>
-                <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\frac{1}{2}')">分数</button>
-                <button type="button" class="tab-btn" style="padding:0.3rem 0.8rem; font-size:0.85rem;" onclick="insertLatex(this, '\\\\sqrt{a^2 + b^2}')">ルート</button>
-              </div>
-              <textarea class="form-control latex-input" rows="2" placeholder="LaTeX形式で入力... (例: \\ce{H2O})"></textarea>
-              <div style="margin-top:0.8rem; text-align:center; min-height:80px; background:white; border:1px solid #cbd5e1; border-radius:6px; display:flex; align-items:center; justify-content:center; padding: 10px;">
-                <img class="latex-preview" style="max-height:100px; display:none;" />
-                <span class="latex-placeholder" style="color:#94a3b8; font-size:0.9rem;">数式を入力するとプレビューが表示されます</span>
-              </div>
-              <div style="display:flex; gap:0.8rem; margin-top:1rem;">
-                <button type="button" class="save-btn" style="padding:0.6rem; font-size:0.9rem;" onclick="applyLatex(this, 'image')">🖼️ 問題画像としてセット</button>
-                <button type="button" class="save-btn" style="padding:0.6rem; font-size:0.9rem; background:#005bac;" onclick="applyLatex(this, 'exp_image')">💡 解説画像としてセット</button>
-              </div>
-              <div class="latex-status" style="margin-top:0.8rem; font-size:0.85rem; font-weight:bold; color:#009944;"></div>
-            </div>
+            <input type="hidden" id="g_img_filename" value="">
+            <input type="hidden" id="g_exp_img_filename" value="">
 
             <div class="form-group">
               <label>🖼️ クイズ用の問題画像 (任意)</label>
@@ -864,46 +784,6 @@ app.get('/csv-generator', (req, res) => {
       </div>
 
       <script>
-        function insertLatex(btn, text) {
-          const container = btn.closest('.latex-tool');
-          const input = container.querySelector('.latex-input');
-          input.value = text;
-          updateLatexPreview(container);
-        }
-        function updateLatexPreview(container) {
-          const input = container.querySelector('.latex-input').value.trim();
-          const preview = container.querySelector('.latex-preview');
-          const placeholder = container.querySelector('.latex-placeholder');
-          if (input) {
-            preview.src = 'https://latex.codecogs.com/png.image?\\dpi{150}\\bg_white\\huge ' + encodeURIComponent(input);
-            preview.style.display = 'block';
-            placeholder.style.display = 'none';
-          } else {
-            preview.style.display = 'none';
-            placeholder.style.display = 'block';
-          }
-        }
-        document.addEventListener('input', (e) => {
-          if (e.target.classList.contains('latex-input')) {
-            updateLatexPreview(e.target.closest('.latex-tool'));
-          }
-        });
-        function applyLatex(btn, targetType) {
-          const container = btn.closest('.latex-tool');
-          const preview = container.querySelector('.latex-preview');
-          if (preview.style.display === 'none') return alert('数式を入力してください');
-          const url = preview.src;
-          const status = container.querySelector('.latex-status');
-          
-          if (targetType === 'image') {
-            document.getElementById('g_img_filename').value = url;
-            status.innerHTML = '✅ <b>問題画像</b> としてURLをセットしました！';
-          } else {
-            document.getElementById('g_exp_img_filename').value = url;
-            status.innerHTML = '✅ <b>解説画像</b> としてURLをセットしました！';
-          }
-        }
-
         let quizList = [];
 
   // 🌟 画像を選んだ瞬間に裏側でGASへアップロードしてURLをもらう
