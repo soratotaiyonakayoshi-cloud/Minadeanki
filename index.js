@@ -687,14 +687,21 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
 });
 
 // ==========================================================
-// 🖼️ 画像プール取得API
+// 🖼️ 画像プール取得API（Googleドライブ直結）
 // ==========================================================
-app.get('/api/recent-images', (req, res) => {
+app.get('/api/recent-images', async (req, res) => {
   try {
-    if (!fs.existsSync(RECENT_IMAGES_PATH)) return res.json([]);
-    const images = JSON.parse(fs.readFileSync(RECENT_IMAGES_PATH, 'utf8'));
-    res.json(images);
+    const response = await axios.post(process.env.GAS_WEB_APP_URL, { action: 'list_images' });
+    if (Array.isArray(response.data)) {
+      // GAS returns [{name, url, timestamp}], frontend expects array of strings [url, url]
+      const urls = response.data.map(img => img.url);
+      res.json(urls);
+    } else {
+      console.error('GAS returned invalid data for list_images:', response.data);
+      res.json([]);
+    }
   } catch (e) {
+    console.error('Failed to fetch image pool from GAS:', e);
     res.json([]);
   }
 });
