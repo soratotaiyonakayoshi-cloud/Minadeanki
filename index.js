@@ -121,8 +121,8 @@ app.get('/', async (req, res) => {
               <div class="form-group"> <label>💡 解説（任意）</label> <textarea name="explanation" class="form-control" rows="2">${quiz.explanation || ''}</textarea> </div>
               
               <div class="form-row">
-                <div class="form-group"> <label>🖼️ 問題画像の変更</label> <input type="file" name="image_file" class="form-control" accept="image/*"> </div>
-                <div class="form-group"> <label>💡 解説画像の変更</label> <input type="file" name="exp_image_file" class="form-control" accept="image/*"> </div>
+                <div class="form-group"> <label>🖼️ 問題画像の変更</label> <input type="file" name="image_file" class="form-control" accept="image/*"> <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div> </div>
+                <div class="form-group"> <label>💡 解説画像の変更</label> <input type="file" name="exp_image_file" class="form-control" accept="image/*"> <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">※推奨サイズ 5MB以下</div> </div>
               </div>
 
               <div style="display:flex; gap:0.5rem; margin-top:1rem;">
@@ -369,8 +369,8 @@ app.get('/', async (req, res) => {
               <div class="form-group"> <label for="explanation">💡 解説（任意）</label> <textarea id="explanation" name="explanation" class="form-control" rows="2" placeholder="解説文"></textarea> </div>
               
               <div class="form-row">
-                <div class="form-group"> <label for="image_file">🖼️ クイズ用の問題画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> </div>
-                <div class="form-group"> <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label> <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*"> </div>
+                <div class="form-group"> <label for="image_file">🖼️ クイズ用の問題画像（任意）</label> <input type="file" id="image_file" name="image_file" class="form-control" accept="image/*"> <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※推奨 5MB以下（大きすぎるとエラーになります）</div> </div>
+                <div class="form-group"> <label for="exp_image_file">💡 正解発表・解説時の画像（任意）</label> <input type="file" id="exp_image_file" name="exp_image_file" class="form-control" accept="image/*"> <div style="font-size: 0.85rem; color: #e11d48; margin-top: 4px; font-weight: bold;">※推奨 5MB以下（大きすぎるとエラーになります）</div> </div>
               </div>
 
               <button type="submit" class="submit-btn">✨ 登録する</button>
@@ -805,14 +805,6 @@ app.get('/csv-generator', (req, res) => {
             alert('アップロードに失敗しました。');
             statusDiv.className = 'img-status';
             statusDiv.textContent = '❌ 失敗しました';
-            fileInput.value = '';
-          }
-        }
-          } catch (error) {
-            console.error(error);
-            alert('通信エラーが発生しました。');
-            statusDiv.className = 'img-status';
-            statusDiv.textContent = '❌ 通信エラー';
             fileInput.value = '';
           }
         }
