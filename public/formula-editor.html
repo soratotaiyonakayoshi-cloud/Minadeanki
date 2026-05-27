@@ -213,6 +213,9 @@
           <button class="tpl-btn math" onclick="insertLatex('^{  }')">x² 上付き</button>
           <button class="tpl-btn math" onclick="insertLatex('_{  }')">xₙ 下付き</button>
           <button class="tpl-btn math" onclick="insertLatex('\\rightarrow')">→ 矢印</button>
+          <div style="width:100%; height:4px;"></div>
+          <button class="tpl-btn" style="background:#1e293b; color:#fff; border-color:#0f172a;" onclick="insertLatex('\\colorbox{black}{\\textcolor{black}{ ? }}')">⬛ 黒塗り（隠す）</button>
+          <button class="tpl-btn" style="background:#fff; color:#e11d48; border-color:#e11d48;" onclick="insertLatex('\\boxed{ ? }')">❓ 空欄（ハテナ）</button>
         </div>
       </div>
       <div class="editor-layout">
@@ -235,7 +238,11 @@
         <div class="kekule-loading" id="kekule-loading">⏳ 構造式エディタを読み込み中...</div>
         <div id="kekule-area" style="width:100%; height:100%;"></div>
       </div>
-      <p class="hint">※ 初回読み込みに数秒かかることがあります。ツールバー左端のボタンでベンゼン環等のテンプレートを使用できます。</p>
+      <p class="hint">
+        💡 <b>一部を隠す（虫食いにする）には：</b><br>
+        隠したい原子をダブルクリックして、キーボードで「?」と入力すると「?」マークに変更できます。<br>
+        または、左側のツールバーにあるテキスト入力ツール（Aのアイコン）を使って「■」などを構造式の上に配置することも可能です。
+      </p>
     </div>
 
     <!-- ===== Tab 3: Fischer / Haworth ===== -->
@@ -469,7 +476,7 @@
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    var commonGroups = ['H','OH','NH₂','CH₃','COOH','CHO','CH₂OH','F','Cl','Br','SH','OCH₃','NHCOCH₃'];
+    var commonGroups = ['H','OH','NH₂','CH₃','COOH','CHO','CH₂OH','F','Cl','Br','SH','OCH₃','NHCOCH₃', '?', '■'];
 
     function makeGroupOptions(selected) {
       var html = '';
