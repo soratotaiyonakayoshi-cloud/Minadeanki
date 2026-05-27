@@ -501,16 +501,24 @@ app.get('/', async (req, res) => {
           document.getElementById('image-pool-modal').style.display = 'flex';
           fetch('/api/recent-images').then(r => r.json()).then(images => {
             const grid = document.getElementById('image-pool-grid');
-            if (images.length === 0) {
+            if (!images || images.length === 0) {
               grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 2rem;">画像履歴がありません。数式・構造式エディタで保存するとここに表示されます。</div>';
               return;
             }
-            grid.innerHTML = images.map(img => 
-              '<div onclick="selectImageFromPool(\\'' + img.url + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
-              '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + img.url + '" style="max-width:100%; max-height:100%; object-fit:contain;"></div>' +
-              '<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">' + new Date(img.timestamp).toLocaleString() + '</div>' +
-              '</div>'
-            ).join('');
+            grid.innerHTML = images.map(function(img) {
+              var imgUrl = typeof img === 'string' ? img : img.url;
+              var imgName = (typeof img === 'object' && img.name) ? img.name : '';
+              var imgDate = '';
+              if (typeof img === 'object' && img.timestamp) {
+                var d = new Date(img.timestamp);
+                if (!isNaN(d.getTime())) imgDate = d.toLocaleString('ja-JP');
+              }
+              var label = imgName || imgDate || '画像';
+              return '<div onclick="selectImageFromPool(\\'' + imgUrl.replace(/'/g, "\\\\'") + '\\')" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.5rem; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor=\\'#005bac\\'; this.style.transform=\\'translateY(-2px)\\';" onmouseout="this.style.borderColor=\\'#e2e8f0\\'; this.style.transform=\\'none\\';">' +
+                '<div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; overflow:hidden; margin-bottom:0.5rem;"><img src="' + imgUrl + '" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.parentElement.innerHTML=\\'<span style=padding:1rem;color:#94a3b8>読込失敗</span>\\'"></div>' +
+                '<div style="font-size:0.7rem; color:#94a3b8; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + label + '</div>' +
+                '</div>';
+            }).join('');
           }).catch(e => {
             document.getElementById('image-pool-grid').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #e11d48; padding: 2rem;">読み込みエラー</div>';
           });
@@ -701,17 +709,49 @@ app.post('/api/upload-image-single', quizUploadFields, async (req, res) => {
 // ==========================================================
 app.get('/api/recent-images', async (req, res) => {
   try {
-    const response = await axios.post(process.env.GAS_WEB_APP_URL, { action: 'list_images' });
-    if (Array.isArray(response.data)) {
-      // GAS returns [{name, url, timestamp}], frontend expects array of strings [url, url]
-      const urls = response.data.map(img => img.url);
-      res.json(urls);
-    } else {
-      console.error('GAS returned invalid data for list_images:', response.data);
-      res.json([]);
+    // まずGASからGoogleドライブの画像一覧を取得
+    let gasImages = [];
+    try {
+      const response = await axios.post(process.env.GAS_WEB_APP_URL, { action: 'list_images' });
+      let data = response.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch(e) { data = []; }
+      }
+      if (Array.isArray(data)) {
+        gasImages = data.map(img => ({
+          url: img.url,
+          name: img.name || '',
+          timestamp: img.timestamp || Date.now()
+        }));
+      }
+    } catch(e) {
+      console.error('GAS list_images failed:', e.message);
     }
+
+    // ローカルの履歴も結合
+    let localImages = [];
+    try {
+      if (fs.existsSync(RECENT_IMAGES_PATH)) {
+        localImages = JSON.parse(fs.readFileSync(RECENT_IMAGES_PATH, 'utf8'));
+      }
+    } catch(e) {}
+
+    // 結合して重複除去（URLベース）、最新順にソート
+    const allImages = [...gasImages, ...localImages.map(img => ({
+      url: img.url,
+      name: '',
+      timestamp: new Date(img.timestamp).getTime() || Date.now()
+    }))];
+    const seen = new Set();
+    const unique = allImages.filter(img => {
+      if (seen.has(img.url)) return false;
+      seen.add(img.url);
+      return true;
+    });
+    unique.sort((a, b) => b.timestamp - a.timestamp);
+    res.json(unique.slice(0, 30));
   } catch (e) {
-    console.error('Failed to fetch image pool from GAS:', e);
+    console.error('Failed to fetch image pool:', e);
     res.json([]);
   }
 });
