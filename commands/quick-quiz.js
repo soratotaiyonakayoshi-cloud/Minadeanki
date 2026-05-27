@@ -58,17 +58,14 @@ module.exports = {
     const messageOptions = { embeds: [embed], components: [row], files: [] };
     
     if (quiz.image) {
-      const safeImageName = 'quiz_image.png';
-      
       if (quiz.image.startsWith('http')) {
-        const encodedUrl = encodeURIComponent(quiz.image);
-        const proxyImageUrl = `${GAS_WEB_APP_URL}?url=${encodedUrl}`;
-        messageOptions.files = [new AttachmentBuilder(proxyImageUrl, { name: safeImageName })];
-        embed.setImage(`attachment://${safeImageName}`);
+        // 🌟 GoogleドライブのURLをEmbedに直接セット（プロキシ不要）
+        embed.setImage(quiz.image);
       } else {
         // 🌟 新しい形式（ローカルの images フォルダ）の画像
         const imagePath = path.join(__dirname, '..', 'images', quiz.image);
         if (fs.existsSync(imagePath)) {
+          const safeImageName = 'quiz_image.png';
           messageOptions.files = [new AttachmentBuilder(imagePath, { name: safeImageName })];
           embed.setImage(`attachment://${safeImageName}`);
         } else {
