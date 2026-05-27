@@ -2,232 +2,99 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>数式・構造式エディタ - みんなで暗記！</title>
+  <title>数式・構造式エディタ (Ketcher)</title>
+  
   <!-- KaTeX -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  
   <!-- html2canvas -->
-  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Segoe UI', sans-serif;
-      margin: 0; padding: 2rem; line-height: 1.6;
-      background: linear-gradient(135deg, #005bac 0%, #009944 100%);
-      color: #222; min-height: 100vh;
-    }
-    .bg-shapes { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; pointer-events: none; margin: 0; padding: 0; list-style: none; }
-    .shape { position: absolute; display: block; background: rgba(255,255,255,0.30); animation: float 22s linear infinite; bottom: -150px; }
-    .shape:nth-child(1) { left:25%; width:80px; height:80px; animation-delay:0s; }
-    .shape:nth-child(2) { left:10%; width:30px; height:30px; animation-delay:2s; animation-duration:12s; border-radius:50%; }
-    .shape:nth-child(3) { left:70%; width:25px; height:25px; animation-delay:4s; }
-    .shape:nth-child(4) { left:40%; width:60px; height:60px; animation-delay:0s; animation-duration:18s; border-radius:50%; }
-    .shape:nth-child(5) { left:65%; width:20px; height:20px; animation-delay:0s; }
-    .shape:nth-child(6) { left:75%; width:110px; height:110px; animation-delay:3s; }
-    .shape:nth-child(7) { left:35%; width:130px; height:130px; animation-delay:7s; }
-    .shape:nth-child(8) { left:50%; width:25px; height:25px; animation-delay:15s; animation-duration:45s; }
-    @keyframes float {
-      0% { transform: translateY(0) rotate(0deg); opacity:1; border-radius:10%; }
-      100% { transform: translateY(-1000px) rotate(540deg); opacity:0; border-radius:50%; }
-    }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 2rem; background: #f8fafc; color: #333; }
+    .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    h1 { color: #005bac; margin-top: 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; text-align: center; }
+    
+    .tab-header { display: flex; gap: 10px; margin-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    .editor-tab { padding: 10px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; transition: all 0.2s; color: #64748b; }
+    .editor-tab:hover { background: #e2e8f0; color: #0f172a; }
+    .editor-tab.active { background: #005bac; color: #fff; border-color: #005bac; box-shadow: 0 4px 6px rgba(0, 91, 172, 0.2); }
+    
+    .tab-panel { display: none; animation: fadeIn 0.3s; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-    .container {
-      max-width: 960px; margin: 0 auto;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      padding: 2.5rem; border-radius: 20px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-      border-top: 6px solid #005bac; position: relative; z-index: 1;
-    }
-    .back-btn { display:inline-block; margin-bottom:1.5rem; color:#fff; text-decoration:none; font-weight:bold; background:#005bac; padding:0.5rem 1rem; border-radius:6px; transition:all 0.2s; }
-    .back-btn:hover { background:#004480; transform:translateY(-2px); }
-    h1 { color:#005bac; margin-top:0; font-size:1.8rem; border-bottom:2px solid #e2e8f0; padding-bottom:0.5rem; }
-    .desc { color:#556677; font-size:0.92rem; margin-bottom:1.5rem; }
+    /* LaTeX Editor */
+    textarea { width: 100%; height: 150px; padding: 1rem; font-size: 1.1rem; font-family: monospace; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; resize: vertical; margin-bottom: 1rem; }
+    textarea:focus { outline: none; border-color: #005bac; box-shadow: 0 0 0 3px rgba(0, 91, 172, 0.1); }
+    .preview-box { border: 2px dashed #cbd5e1; padding: 2rem; min-height: 100px; border-radius: 8px; background: #f8fafc; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #94a3b8; margin-bottom: 1rem; transition: all 0.3s; }
+    .preview-box.has-content { border-style: solid; border-color: #e2e8f0; background: #fff; color: #333; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; background: #f1f5f9; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .tool-btn { padding: 6px 12px; font-size: 0.9rem; font-family: monospace; cursor: pointer; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; transition: all 0.2s; }
+    .tool-btn:hover { background: #005bac; color: #fff; border-color: #005bac; }
 
-    /* ===== Editor Tabs ===== */
-    .editor-tabs { display:flex; gap:0.5rem; margin-bottom:0; flex-wrap:wrap; }
-    .editor-tab {
-      flex:1; min-width:140px; padding:0.8rem 1rem; border:2px solid #e2e8f0; border-bottom:none;
-      background:#f8fafc; color:#475569; font-weight:bold; font-size:0.95rem;
-      cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s; text-align:center;
-    }
-    .editor-tab:hover { background:#e2e8f0; }
-    .editor-tab.active { background:#fff; color:#005bac; border-color:#005bac; border-bottom-color:#fff; position:relative; z-index:2; }
+    /* Button and Status */
+    .action-btn { display: block; width: 100%; padding: 1rem; font-size: 1.2rem; font-weight: bold; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2); }
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3); }
+    .action-btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+    
+    .export-status { margin-top: 1rem; padding: 1rem; border-radius: 8px; text-align: center; font-weight: bold; display: none; }
+    .export-status.success { display: block; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .export-status.error { display: block; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-    .tab-panel {
-      display:none; background:#fff; border:2px solid #005bac; border-top:none;
-      border-radius:0 0 12px 12px; padding:1.5rem; margin-bottom:1.5rem;
-      min-height: 300px;
-    }
-    .tab-panel.active { display:block; }
+    .hint { font-size: 0.9rem; color: #64748b; margin-top: 0.5rem; }
 
-    /* ===== LaTeX Editor ===== */
-    .template-section h3 { color:#009944; margin:0 0 0.8rem 0; font-size:1rem; }
-    .template-buttons { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:1.2rem; }
-    .tpl-btn {
-      padding:0.4rem 0.8rem; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534;
-      border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.15s;
-    }
-    .tpl-btn:hover { background:#166534; color:#fff; transform:translateY(-1px); }
-    .tpl-btn.chem { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
-    .tpl-btn.chem:hover { background:#92400e; color:#fff; }
-    .tpl-btn.math { background:#ede9fe; border-color:#c4b5fd; color:#5b21b6; }
-    .tpl-btn.math:hover { background:#5b21b6; color:#fff; }
-
-    .editor-layout { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    @media(max-width:700px) { .editor-layout { grid-template-columns:1fr; } }
-    .editor-layout label { display:block; font-weight:bold; font-size:0.9rem; color:#3b4a5a; margin-bottom:0.4rem; }
-    .editor-layout textarea {
-      width:100%; padding:0.8rem; background:#f8fafc; border:1px solid #cbd5e1;
-      border-radius:8px; font-family:'Courier New',monospace; font-size:0.95rem; resize:vertical;
-    }
-    .editor-layout textarea:focus { outline:none; border-color:#009944; background:#fff; }
-    .preview-box {
-      min-height:100px; padding:1.5rem; background:#fafafa; border:2px dashed #e2e8f0;
-      border-radius:8px; display:flex; align-items:center; justify-content:center;
-      font-size:1.2rem; overflow:auto; transition: border-color 0.2s;
-    }
-    .preview-box.has-content { border-color:#009944; border-style:solid; }
-    .preview-box .katex-display { margin: 0; }
-
-    /* ===== Kekule.js Composer ===== */
-    .kekule-wrapper { width:100%; height:500px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; position:relative; }
-    .kekule-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.9); z-index:10; font-size:1.1rem; color:#005bac; font-weight:bold; }
-    .hint { font-size:0.85rem; color:#64748b; margin-top:0.5rem; }
-
-    /* ===== Projection Tabs ===== */
-    .proj-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; }
-    .proj-tab {
-      padding:0.5rem 1.2rem; background:#f1f5f9; border:1px solid #e2e8f0; color:#475569;
-      border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.9rem; transition:all 0.2s;
-    }
-    .proj-tab:hover { background:#e2e8f0; }
-    .proj-tab.active { background:#009944; color:#fff; border-color:#009944; }
-    .proj-panel { display:none; }
-    .proj-panel.active { display:block; }
-
-    /* ===== Fischer / Haworth builders ===== */
-    .builder-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
-    @media(max-width:700px) { .builder-layout { grid-template-columns:1fr; } }
-    .config-panel { background:#f8fafc; padding:1.2rem; border-radius:10px; border:1px solid #e2e8f0; }
-    .config-panel h4 { margin:0 0 0.8rem 0; color:#005bac; font-size:0.95rem; }
-    .form-group { margin-bottom:0.8rem; }
-    .form-group label { display:block; font-size:0.85rem; font-weight:bold; color:#475569; margin-bottom:0.3rem; }
-    .form-control {
-      width:100%; padding:0.5rem; background:#fff; border:1px solid #cbd5e1;
-      border-radius:6px; font-size:0.9rem;
-    }
-    .form-control:focus { outline:none; border-color:#009944; }
-    select.form-control { cursor:pointer; }
-    .form-row { display:flex; gap:0.5rem; align-items:end; }
-    .form-row .form-group { flex:1; }
-    .substituent-row { display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem; padding:0.5rem; background:#fff; border:1px solid #e2e8f0; border-radius:6px; }
-    .substituent-row .label-col { font-weight:bold; color:#005bac; min-width:30px; text-align:center; }
-    .substituent-row select, .substituent-row input { flex:1; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; }
-    .quick-groups { display:flex; flex-wrap:wrap; gap:4px; margin-top:0.5rem; }
-    .quick-group-btn {
-      padding:2px 8px; background:#e0f2fe; border:1px solid #7dd3fc; color:#0369a1;
-      border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:bold; transition:all 0.15s;
-    }
-    .quick-group-btn:hover { background:#0369a1; color:#fff; }
-
-    .preview-panel { display:flex; align-items:center; justify-content:center; }
-    .svg-preview {
-      min-height:200px; padding:1rem; background:#fff; border:2px solid #e2e8f0;
-      border-radius:10px; display:flex; align-items:center; justify-content:center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    .svg-preview svg { max-width:100%; height:auto; }
-
-    /* ===== Export Section ===== */
-    .export-section {
-      background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%);
-      border:2px solid #bae6fd; border-radius:12px; padding:1.5rem; margin-top:0.5rem;
-    }
-    .export-section h3 { margin:0 0 1rem 0; color:#005bac; font-size:1.1rem; }
-    .export-controls { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
-    .export-btn {
-      padding:0.7rem 1.5rem; background:linear-gradient(135deg, #009944, #006633);
-      color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:1rem;
-      cursor:pointer; box-shadow:0 4px 12px rgba(0,153,68,0.3); transition:all 0.2s;
-    }
-    .export-btn:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,153,68,0.4); }
-    .export-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-    .export-status { font-size:0.9rem; font-weight:bold; }
-    .export-status.loading { color:#005bac; }
-    .export-status.success { color:#009944; }
-    .export-status.error { color:#e11d48; }
-    .url-result { margin-top:1rem; display:none; }
-    .url-result label { font-weight:bold; font-size:0.9rem; color:#475569; display:block; margin-bottom:0.3rem; }
-    .url-row { display:flex; gap:0.5rem; }
-    .url-row input {
-      flex:1; padding:0.6rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px;
-      font-size:0.85rem; font-family:monospace;
-    }
-    .url-row button {
-      padding:0.6rem 1rem; background:#005bac; color:#fff; border:none; border-radius:6px;
-      font-weight:bold; cursor:pointer; white-space:nowrap; transition:all 0.2s;
-    }
-    .url-row button:hover { background:#004480; }
-    .url-hint { font-size:0.8rem; color:#009944; margin-top:0.5rem; font-weight:bold; }
+    /* Projections (Fischer / Haworth) */
+    .proj-tabs { display: flex; gap: 5px; margin-bottom: 1rem; }
+    .proj-tab { padding: 5px 15px; font-size: 0.9rem; cursor: pointer; background: #e2e8f0; border: none; border-radius: 4px; transition: 0.2s; }
+    .proj-tab.active { background: #0f172a; color: #fff; }
+    .proj-panel { display: none; }
+    .proj-panel.active { display: block; }
+    .builder-layout { display: flex; gap: 20px; align-items: flex-start; }
+    .config-panel { flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .preview-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; background: #fff; border: 2px dashed #cbd5e1; border-radius: 8px; min-height: 200px; }
+    .form-row { margin-bottom: 10px; }
+    .form-row label { display: block; font-size: 0.85rem; font-weight: bold; color: #475569; margin-bottom: 3px; }
+    .form-row select, .form-row input { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.9rem; }
+    .form-row select:focus, .form-row input:focus { outline: none; border-color: #005bac; }
+    
+    /* Input layout for substituents */
+    .subs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .subs-grid.haworth { grid-template-columns: 1fr 1fr; }
   </style>
 </head>
 <body>
-  <ul class="bg-shapes">
-    <li class="shape"></li><li class="shape"></li><li class="shape"></li>
-    <li class="shape"></li><li class="shape"></li><li class="shape"></li>
-    <li class="shape"></li><li class="shape"></li>
-  </ul>
 
   <div class="container">
-    <a href="/" class="back-btn">← 管理画面に戻る</a>
-    <h1>🧪 数式・構造式エディタ</h1>
-    <p class="desc">
-      化学式・数式・構造式を入力してPNG画像に変換し、クイズの画像として登録できます。<br>
-      画像ファイルを事前に用意する必要はありません！
-    </p>
-
-    <!-- ===== Tab Navigation ===== -->
-    <div class="editor-tabs">
-      <button class="editor-tab active" onclick="switchTab('latex')">📐 数式エディタ</button>
-      <button class="editor-tab" onclick="switchTab('structure')">🔬 構造式エディタ</button>
-      <button class="editor-tab" onclick="switchTab('projection')">🧬 Fischer / Haworth</button>
+    <h1>📝 クイズ画像ジェネレータ</h1>
+    
+    <div class="tab-header">
+      <button class="editor-tab active" onclick="switchTab('latex')">📐 数式 (LaTeX)</button>
+      <button class="editor-tab" onclick="switchTab('structure')">🔬 構造式 (Ketcher)</button>
+      <button class="editor-tab" onclick="switchTab('projection')">🧪 投影式 (糖類など)</button>
     </div>
 
     <!-- ===== Tab 1: LaTeX Editor ===== -->
     <div id="tab-latex" class="tab-panel active">
-      <div class="template-section">
-        <h3>📋 よく使うテンプレート（クリックで挿入）</h3>
-        <div class="template-buttons">
-          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  }')">⚗️ 化学式 \ce{}</button>
-          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  ->  }')">➡️ 反応式</button>
-          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  <=>  }')">⇌ 平衡</button>
-          <button class="tpl-btn chem" onclick="insertLatex('\\ce{  ->[$\\Delta$]  }')">🔥 加熱反応</button>
-          <button class="tpl-btn chem" onclick="insertLatex('\\ce{^{  }_{  }X}')">🔢 同位体</button>
-          <button class="tpl-btn math" onclick="insertLatex('\\frac{  }{  }')">➗ 分数</button>
-          <button class="tpl-btn math" onclick="insertLatex('\\sqrt{  }')">√ 平方根</button>
-          <button class="tpl-btn math" onclick="insertLatex('\\int_{  }^{  }')">∫ 積分</button>
-          <button class="tpl-btn math" onclick="insertLatex('\\sum_{i=1}^{n}')">Σ 総和</button>
-          <button class="tpl-btn math" onclick="insertLatex('^{  }')">x² 上付き</button>
-          <button class="tpl-btn math" onclick="insertLatex('_{  }')">xₙ 下付き</button>
-          <button class="tpl-btn math" onclick="insertLatex('\\rightarrow')">→ 矢印</button>
-          <div style="width:100%; height:4px;"></div>
-          <button class="tpl-btn" style="background:#1e293b; color:#fff; border-color:#0f172a;" onclick="insertLatex('\\colorbox{black}{\\textcolor{black}{ ? }}')">⬛ 黒塗り（隠す）</button>
-          <button class="tpl-btn" style="background:#fff; color:#e11d48; border-color:#e11d48;" onclick="insertLatex('\\boxed{ ? }')">❓ 空欄（ハテナ）</button>
-        </div>
+      <div class="toolbar">
+        <button class="tool-btn" onclick="insertLatex('\\frac{分子}{分母}')">分数</button>
+        <button class="tool-btn" onclick="insertLatex('^{上付き}')">上付き</button>
+        <button class="tool-btn" onclick="insertLatex('_{下付き}')">下付き</button>
+        <button class="tool-btn" onclick="insertLatex('\\sqrt{x}')">ルート</button>
+        <button class="tool-btn" onclick="insertLatex('\\int_{a}^{b} x dx')">積分</button>
+        <button class="tool-btn" onclick="insertLatex('\\sum_{n=1}^{\\infty} a_n')">シグマ</button>
+        <button class="tool-btn" onclick="insertLatex('\\rightarrow')">→</button>
+        <button class="tool-btn" onclick="insertLatex('\\rightleftharpoons')">⇌</button>
+        <button class="tool-btn" onclick="insertLatex('\\text{日本語}')">テキスト</button>
+        <button class="tool-btn" onclick="insertLatex('\\blacksquare')">■ (虫食い)</button>
+        <button class="tool-btn" onclick="insertLatex('?')">? (虫食い)</button>
       </div>
-      <div class="editor-layout">
-        <div>
-          <label for="latex-input">✏️ LaTeX入力</label>
-          <textarea id="latex-input" rows="5" oninput="updateLatexPreview()" placeholder="例: \ce{H2SO4 + 2NaOH -> Na2SO4 + 2H2O}"></textarea>
-          <p class="hint">💡 化学式は <code>\ce{...}</code> で囲みます。数式はそのまま入力できます。</p>
-        </div>
-        <div>
-          <label>👁️ プレビュー</label>
-          <div id="latex-preview" class="preview-box">ここにプレビューが表示されます</div>
-        </div>
+
+      <textarea id="latex-input" placeholder="ここにLaTeXを入力してください。&#10;例: \text{H}_2 + \frac{1}{2}\text{O}_2 \rightarrow \text{H}_2\text{O}" oninput="updateLatexPreview()"></textarea>
+      
+      <div class="preview-box" id="latex-preview">
+        ここにプレビューが表示されます
       </div>
     </div>
 
@@ -252,43 +119,26 @@
           <div class="config-panel">
             <h4>⚙️ Fischer式の設定</h4>
             <div class="form-row">
-              <div class="form-group">
-                <label>炭素数</label>
-                <select id="fischer-carbons" class="form-control" onchange="rebuildFischerInputs(); updateFischerPreview()">
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4" selected>4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                </select>
-              </div>
+              <label>炭素数 (主鎖)</label>
+              <select id="fischer-chain-length" onchange="renderFischer()">
+                <option value="3">3 (例: グリセルアルデヒド)</option>
+                <option value="4">4 (例: エリトロース)</option>
+                <option value="5">5 (例: リボース)</option>
+                <option value="6" selected>6 (例: グルコース)</option>
+              </select>
             </div>
-            <div class="form-group">
-              <label>🔝 最上部の官能基</label>
-              <input type="text" id="fischer-top" class="form-control" value="CHO" oninput="updateFischerPreview()">
-              <div class="quick-groups">
-                <button class="quick-group-btn" onclick="setVal('fischer-top','CHO')">CHO</button>
-                <button class="quick-group-btn" onclick="setVal('fischer-top','COOH')">COOH</button>
-                <button class="quick-group-btn" onclick="setVal('fischer-top','CO')">CO</button>
-                <button class="quick-group-btn" onclick="setVal('fischer-top','CH₃')">CH₃</button>
-              </div>
+            <div class="form-row">
+              <label>上端 (C1)</label>
+              <input type="text" id="fischer-top" value="CHO" oninput="renderFischer()">
             </div>
-            <div id="fischer-substituents">
-              <!-- Built dynamically -->
-            </div>
-            <div class="form-group">
-              <label>🔽 最下部の官能基</label>
-              <input type="text" id="fischer-bottom" class="form-control" value="CH₂OH" oninput="updateFischerPreview()">
-              <div class="quick-groups">
-                <button class="quick-group-btn" onclick="setVal('fischer-bottom','CH₂OH')">CH₂OH</button>
-                <button class="quick-group-btn" onclick="setVal('fischer-bottom','CH₃')">CH₃</button>
-                <button class="quick-group-btn" onclick="setVal('fischer-bottom','COOH')">COOH</button>
-                <button class="quick-group-btn" onclick="setVal('fischer-bottom','H')">H</button>
-              </div>
+            <div id="fischer-subs-container"></div>
+            <div class="form-row">
+              <label>下端 (Cn)</label>
+              <input type="text" id="fischer-bottom" value="CH₂OH" oninput="renderFischer()">
             </div>
           </div>
-          <div class="preview-panel">
-            <div class="svg-preview" id="fischer-preview"></div>
+          <div class="preview-panel" id="fischer-preview-container">
+            <div id="fischer-preview"></div>
           </div>
         </div>
       </div>
@@ -299,49 +149,33 @@
           <div class="config-panel">
             <h4>⚙️ Haworth式の設定</h4>
             <div class="form-row">
-              <div class="form-group">
-                <label>環の種類</label>
-                <select id="haworth-ring" class="form-control" onchange="rebuildHaworthInputs(); updateHaworthPreview()">
-                  <option value="pyranose" selected>ピラノース (六員環)</option>
-                  <option value="furanose">フラノース (五員環)</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>アノマー</label>
-                <select id="haworth-anomer" class="form-control" onchange="updateHaworthPreview()">
-                  <option value="alpha">α (C1-OH 下)</option>
-                  <option value="beta">β (C1-OH 上)</option>
-                </select>
-              </div>
+              <label>環の種類</label>
+              <select id="haworth-ring-type" onchange="renderHaworth()">
+                <option value="pyranose" selected>ピラノース (六員環)</option>
+                <option value="furanose">フラノース (五員環)</option>
+              </select>
             </div>
-            <div id="haworth-substituents">
-              <!-- Built dynamically -->
+            <div class="form-row">
+              <label>アノマー</label>
+              <select id="haworth-anomer" onchange="renderHaworth()">
+                <option value="alpha">α (下向き)</option>
+                <option value="beta" selected>β (上向き)</option>
+              </select>
             </div>
+            <div id="haworth-subs-container"></div>
           </div>
-          <div class="preview-panel">
-            <div class="svg-preview" id="haworth-preview"></div>
+          <div class="preview-panel" id="haworth-preview-container">
+            <div id="haworth-preview"></div>
           </div>
         </div>
       </div>
+      <p class="hint" style="margin-top:10px;">💡 入力欄に「■」や「?」を入れると、虫食い問題にできます。</p>
     </div>
 
-    <!-- ===== Export Section ===== -->
-    <div class="export-section">
-      <h3>📸 画像として保存・登録</h3>
-      <div class="export-controls">
-        <button class="export-btn" id="export-btn" onclick="exportAndUpload()">🖼️ 画像をGoogleドライブに保存</button>
-        <span class="export-status" id="export-status"></span>
-      </div>
-      <div class="url-result" id="url-result" style="display:none; margin-top: 1rem; padding: 1.5rem; background: #f0fdf4; border: 2px dashed #009944; border-radius: 8px; text-align: center;">
-        <h4 style="color: #009944; margin: 0 0 1rem 0; font-size: 1.2rem;">✅ 画像プールに保存されました！</h4>
-        <p style="color: #475569; font-weight: bold; margin-bottom: 1.5rem;">
-          URLのコピーは不要です。ダッシュボードの「🖼️ 画像プールから選ぶ」ボタンから、今作成した画像を選択できます。
-        </p>
-        <a href="/" style="display: inline-block; padding: 0.8rem 2rem; background: #005bac; color: white; text-decoration: none; font-weight: bold; border-radius: 8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,91,172,0.3);">
-          ← ダッシュボードに戻る
-        </a>
-      </div>
-    </div>
+    <hr style="border:0; border-top:1px solid #e2e8f0; margin: 2rem 0;">
+
+    <button class="action-btn" id="export-btn" onclick="exportAndUpload()">🖼️ 画像を生成してダッシュボード（画像プール）に送る</button>
+    <div id="export-status" class="export-status"></div>
   </div>
 
   <script>
@@ -407,107 +241,85 @@
     function switchProjection(type) {
       document.querySelectorAll('.proj-tab').forEach(function(btn) { btn.classList.remove('active'); });
       document.querySelectorAll('.proj-panel').forEach(function(panel) { panel.classList.remove('active'); });
+      
+      var targetTab = type === 'fischer' ? 0 : 1;
+      document.querySelectorAll('.proj-tab')[targetTab].classList.add('active');
       document.getElementById('proj-' + type).classList.add('active');
-      var projTabs = document.querySelectorAll('.proj-tab');
-      if (type === 'fischer') projTabs[0].classList.add('active');
-      else projTabs[1].classList.add('active');
-    }
-
-    /* ========================================
-       Utility
-    ======================================== */
-    function setVal(id, val) {
-      document.getElementById(id).value = val;
-      updateFischerPreview();
-      updateHaworthPreview();
-    }
-
-    function escSvg(str) {
-      if (!str) return '';
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    var commonGroups = ['H','OH','NH₂','CH₃','COOH','CHO','CH₂OH','F','Cl','Br','SH','OCH₃','NHCOCH₃', '?', '■'];
-
-    function makeGroupOptions(selected) {
-      var html = '';
-      for (var i = 0; i < commonGroups.length; i++) {
-        var g = commonGroups[i];
-        html += '<option value="' + escSvg(g) + '"' + (g === selected ? ' selected' : '') + '>' + escSvg(g) + '</option>';
-      }
-      return html;
+      
+      if (type === 'fischer') renderFischer();
+      else renderHaworth();
     }
 
     /* ========================================
        Fischer Projection Builder
     ======================================== */
-    function rebuildFischerInputs() {
-      var n = parseInt(document.getElementById('fischer-carbons').value);
-      var container = document.getElementById('fischer-substituents');
-      var html = '<label style="font-size:0.85rem; font-weight:bold; color:#475569; margin-bottom:0.3rem; display:block;">各炭素の置換基</label>';
-      for (var i = 0; i < n; i++) {
-        var defaultL = (i % 2 === 0) ? 'H' : 'OH';
-        var defaultR = (i % 2 === 0) ? 'OH' : 'H';
-        html += '<div class="substituent-row">'
-          + '<span class="label-col">C' + (i + 1) + '</span>'
-          + '<select id="fischer-left-' + i + '" class="form-control" onchange="updateFischerPreview()" style="flex:1;">' + makeGroupOptions(defaultL) + '</select>'
-          + '<span style="font-weight:bold;color:#94a3b8;"> ← C → </span>'
-          + '<select id="fischer-right-' + i + '" class="form-control" onchange="updateFischerPreview()" style="flex:1;">' + makeGroupOptions(defaultR) + '</select>'
-          + '</div>';
+    var fischerDefaults = {
+      '3': [ {L: 'H', R: 'OH'} ], // Glyceraldehyde
+      '4': [ {L: 'H', R: 'OH'}, {L: 'H', R: 'OH'} ], // Erythrose
+      '5': [ {L: 'H', R: 'OH'}, {L: 'H', R: 'OH'}, {L: 'H', R: 'OH'} ], // Ribose
+      '6': [ {L: 'H', R: 'OH'}, {L: 'HO', R: 'H'}, {L: 'H', R: 'OH'}, {L: 'H', R: 'OH'} ] // Glucose
+    };
+
+    function generateFischerInputs() {
+      var len = parseInt(document.getElementById('fischer-chain-length').value);
+      var chiralCenters = len - 2;
+      var container = document.getElementById('fischer-subs-container');
+      
+      // Preserve existing values if possible
+      var existingL = [], existingR = [];
+      for (var i = 1; i <= 4; i++) {
+        var lInput = document.getElementById('fischer-l' + i);
+        var rInput = document.getElementById('fischer-r' + i);
+        if (lInput) existingL[i] = lInput.value;
+        if (rInput) existingR[i] = rInput.value;
+      }
+
+      var defs = fischerDefaults[len];
+      var html = '';
+      for (var i = 1; i <= chiralCenters; i++) {
+        var valL = existingL[i] !== undefined ? existingL[i] : defs[i-1].L;
+        var valR = existingR[i] !== undefined ? existingR[i] : defs[i-1].R;
+        html += '<div class="form-row subs-grid">';
+        html += '<div><label>C' + (i+1) + ' 左側</label><input type="text" id="fischer-l' + i + '" value="' + valL + '" oninput="renderFischer()"></div>';
+        html += '<div><label>C' + (i+1) + ' 右側</label><input type="text" id="fischer-r' + i + '" value="' + valR + '" oninput="renderFischer()"></div>';
+        html += '</div>';
       }
       container.innerHTML = html;
     }
 
-    function updateFischerPreview() {
-      var n = parseInt(document.getElementById('fischer-carbons').value);
-      var topGroup = document.getElementById('fischer-top').value || 'CHO';
-      var bottomGroup = document.getElementById('fischer-bottom').value || 'CH₂OH';
-
-      var width = 320;
-      var margin = 40;
-      var spacing = 70;
-      var armLen = 70;
-      var startY = margin + 30;
-      var totalH = startY + (n - 1) * spacing + 50;
+    function renderFischer() {
+      var len = parseInt(document.getElementById('fischer-chain-length').value);
+      var top = document.getElementById('fischer-top').value;
+      var bottom = document.getElementById('fischer-bottom').value;
+      var chiralCenters = len - 2;
+      
+      var spacing = 40;
+      var width = 200;
+      var height = (chiralCenters + 1) * spacing + 40;
       var cx = width / 2;
+      var startY = 40;
 
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + totalH + '" style="background:white; font-family: Arial, sans-serif;">';
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '">';
+      svg += '<style>text { font-family: Arial, sans-serif; font-size: 16px; dominant-baseline: middle; text-anchor: middle; } .line { stroke: #000; stroke-width: 2; }</style>';
+      
+      // Draw vertical backbone
+      svg += '<line class="line" x1="' + cx + '" y1="' + startY + '" x2="' + cx + '" y2="' + (startY + chiralCenters * spacing) + '" />';
+      
+      // Draw Top & Bottom
+      svg += '<text x="' + cx + '" y="' + (startY - 20) + '">' + top + '</text>';
+      svg += '<text x="' + cx + '" y="' + (startY + chiralCenters * spacing + 20) + '">' + bottom + '</text>';
 
-      // Top group
-      svg += '<text x="' + cx + '" y="' + margin + '" text-anchor="middle" font-size="16" font-weight="bold">' + escSvg(topGroup) + '</text>';
-
-      // Vertical backbone (top to first carbon)
-      svg += '<line x1="' + cx + '" y1="' + (margin + 8) + '" x2="' + cx + '" y2="' + startY + '" stroke="black" stroke-width="2"/>';
-
-      for (var i = 0; i < n; i++) {
-        var y = startY + i * spacing;
-
-        // Vertical segment to next carbon (or bottom)
-        if (i < n - 1) {
-          svg += '<line x1="' + cx + '" y1="' + y + '" x2="' + cx + '" y2="' + (y + spacing) + '" stroke="black" stroke-width="2"/>';
-        }
-
-        // Horizontal crossbar
-        svg += '<line x1="' + (cx - armLen) + '" y1="' + y + '" x2="' + (cx + armLen) + '" y2="' + y + '" stroke="black" stroke-width="2"/>';
-
-        // Left substituent
-        var leftEl = document.getElementById('fischer-left-' + i);
-        var leftGroup = leftEl ? leftEl.value : 'H';
-        svg += '<text x="' + (cx - armLen - 8) + '" y="' + (y + 5) + '" text-anchor="end" font-size="14" font-weight="bold">' + escSvg(leftGroup) + '</text>';
-
-        // Right substituent
-        var rightEl = document.getElementById('fischer-right-' + i);
-        var rightGroup = rightEl ? rightEl.value : 'OH';
-        svg += '<text x="' + (cx + armLen + 8) + '" y="' + (y + 5) + '" text-anchor="start" font-size="14" font-weight="bold">' + escSvg(rightGroup) + '</text>';
+      // Draw horizontal bonds and substituents
+      for (var i = 1; i <= chiralCenters; i++) {
+        var y = startY + (i - 0.5) * spacing;
+        var lText = document.getElementById('fischer-l' + i) ? document.getElementById('fischer-l' + i).value : '';
+        var rText = document.getElementById('fischer-r' + i) ? document.getElementById('fischer-r' + i).value : '';
+        
+        svg += '<line class="line" x1="' + (cx - 30) + '" y1="' + y + '" x2="' + (cx + 30) + '" y2="' + y + '" />';
+        svg += '<text x="' + (cx - 45) + '" y="' + y + '">' + lText + '</text>';
+        svg += '<text x="' + (cx + 45) + '" y="' + y + '">' + rText + '</text>';
       }
-
-      // Vertical backbone (last carbon to bottom)
-      var lastY = startY + (n - 1) * spacing;
-      svg += '<line x1="' + cx + '" y1="' + lastY + '" x2="' + cx + '" y2="' + (lastY + 25) + '" stroke="black" stroke-width="2"/>';
-
-      // Bottom group
-      svg += '<text x="' + cx + '" y="' + (lastY + 42) + '" text-anchor="middle" font-size="16" font-weight="bold">' + escSvg(bottomGroup) + '</text>';
-
+      
       svg += '</svg>';
       document.getElementById('fischer-preview').innerHTML = svg;
     }
@@ -515,238 +327,178 @@
     /* ========================================
        Haworth Projection Builder
     ======================================== */
-    function rebuildHaworthInputs() {
-      var ringType = document.getElementById('haworth-ring').value;
-      var container = document.getElementById('haworth-substituents');
-      var positions = ringType === 'pyranose'
-        ? [
-            { label: 'C1', defUp: 'OH', defDown: 'H' },
-            { label: 'C2', defUp: 'H', defDown: 'OH' },
-            { label: 'C3', defUp: 'OH', defDown: 'H' },
-            { label: 'C4', defUp: 'H', defDown: 'OH' },
-            { label: 'C5', defUp: 'H', defDown: '' },
-            { label: 'C6 (exo)', defUp: 'CH₂OH', defDown: '' }
-          ]
-        : [
-            { label: 'C1', defUp: 'OH', defDown: 'H' },
-            { label: 'C2', defUp: 'H', defDown: 'OH' },
-            { label: 'C3', defUp: 'OH', defDown: 'H' },
-            { label: 'C4', defUp: 'H', defDown: '' },
-            { label: 'C5 (exo)', defUp: 'CH₂OH', defDown: '' }
-          ];
+    var haworthDefaults = {
+      'pyranose': [ {t: 'H', b: 'OH'}, {t: 'OH', b: 'H'}, {t: 'H', b: 'OH'}, {t: 'CH₂OH', b: 'H'} ], // D-Glucose (C2 to C5)
+      'furanose': [ {t: 'H', b: 'OH'}, {t: 'OH', b: 'H'}, {t: 'CH₂OH', b: 'H'} ] // D-Ribose roughly
+    };
 
-      var html = '<label style="font-size:0.85rem; font-weight:bold; color:#475569; margin-bottom:0.3rem; display:block;">各位置の置換基 (上/下)</label>';
-      for (var i = 0; i < positions.length; i++) {
-        var p = positions[i];
-        html += '<div class="substituent-row">'
-          + '<span class="label-col">' + p.label + '</span>'
-          + '<span style="font-size:0.75rem; color:#64748b;">上:</span>'
-          + '<select id="haworth-up-' + i + '" class="form-control" onchange="updateHaworthPreview()" style="flex:1;">' + makeGroupOptions(p.defUp) + '</select>'
-          + '<span style="font-size:0.75rem; color:#64748b;">下:</span>'
-          + '<select id="haworth-down-' + i + '" class="form-control" onchange="updateHaworthPreview()" style="flex:1;">' + makeGroupOptions(p.defDown) + '</select>'
-          + '</div>';
+    function generateHaworthInputs() {
+      var type = document.getElementById('haworth-ring-type').value;
+      var container = document.getElementById('haworth-subs-container');
+      var numSubs = type === 'pyranose' ? 4 : 3;
+      var defs = haworthDefaults[type];
+
+      // Preserve existing
+      var existingT = [], existingB = [];
+      for (var i = 1; i <= 4; i++) {
+        var tInput = document.getElementById('haworth-t' + i);
+        var bInput = document.getElementById('haworth-b' + i);
+        if (tInput) existingT[i] = tInput.value;
+        if (bInput) existingB[i] = bInput.value;
+      }
+
+      var html = '';
+      for (var i = 1; i <= numSubs; i++) {
+        var valT = existingT[i] !== undefined ? existingT[i] : defs[i-1].t;
+        var valB = existingB[i] !== undefined ? existingB[i] : defs[i-1].b;
+        html += '<div class="form-row subs-grid haworth">';
+        html += '<div><label>C' + (i+1) + ' 上</label><input type="text" id="haworth-t' + i + '" value="' + valT + '" oninput="renderHaworth()"></div>';
+        html += '<div><label>C' + (i+1) + ' 下</label><input type="text" id="haworth-b' + i + '" value="' + valB + '" oninput="renderHaworth()"></div>';
+        html += '</div>';
       }
       container.innerHTML = html;
     }
 
-    function updateHaworthPreview() {
-      var ringType = document.getElementById('haworth-ring').value;
+    function renderHaworth() {
+      var type = document.getElementById('haworth-ring-type').value;
       var anomer = document.getElementById('haworth-anomer').value;
+      
+      var width = 300;
+      var height = 200;
+      var cx = width / 2;
+      var cy = height / 2;
 
-      var w = 420, h = 360;
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" style="background:white; font-family: Arial, sans-serif;">';
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '">';
+      svg += '<style>text { font-family: Arial, sans-serif; font-size: 16px; dominant-baseline: middle; text-anchor: middle; } .line { stroke: #000; stroke-width: 2; stroke-linejoin: round; } .bold-line { stroke: #000; stroke-width: 4; stroke-linecap: round; } .bond { stroke: #000; stroke-width: 1.5; }</style>';
 
-      if (ringType === 'pyranose') {
-        svg += drawPyranose(anomer, w, h);
-      } else {
-        svg += drawFuranose(anomer, w, h);
+      if (type === 'pyranose') {
+        // Hexagon coordinates
+        var pts = [
+          {x: cx + 60, y: cy},      // C1 (right)
+          {x: cx + 30, y: cy + 30}, // C2 (bottom right)
+          {x: cx - 30, y: cy + 30}, // C3 (bottom left)
+          {x: cx - 60, y: cy},      // C4 (left)
+          {x: cx - 30, y: cy - 30}, // C5 (top left)
+          {x: cx + 30, y: cy - 30}  // O (top right)
+        ];
+        
+        // Draw Ring
+        svg += '<polygon points="' + pts[0].x+','+pts[0].y + ' ' + pts[1].x+','+pts[1].y + ' ' + pts[2].x+','+pts[2].y + ' ' + pts[3].x+','+pts[3].y + ' ' + pts[4].x+','+pts[4].y + ' ' + pts[5].x+','+pts[5].y + '" fill="none" class="line"/>';
+        // Bold front bonds
+        svg += '<line class="bold-line" x1="'+pts[1].x+'" y1="'+pts[1].y+'" x2="'+pts[2].x+'" y2="'+pts[2].y+'" />';
+        svg += '<line class="bold-line" x1="'+pts[0].x+'" y1="'+pts[0].y+'" x2="'+pts[1].x+'" y2="'+pts[1].y+'" />';
+        svg += '<line class="bold-line" x1="'+pts[2].x+'" y1="'+pts[2].y+'" x2="'+pts[3].x+'" y2="'+pts[3].y+'" />';
+
+        // Oxygen atom (white bg to hide line underneath)
+        svg += '<circle cx="'+pts[5].x+'" cy="'+pts[5].y+'" r="12" fill="#fff" />';
+        svg += '<text x="'+pts[5].x+'" y="'+pts[5].y+'">O</text>';
+
+        // C1 Anomeric substituent
+        var c1T = anomer === 'beta' ? 'OH' : 'H';
+        var c1B = anomer === 'beta' ? 'H' : 'OH';
+        svg += drawSubstituent(pts[0].x, pts[0].y, c1T, c1B);
+
+        // C2 to C5 Substituents
+        for (var i = 1; i <= 4; i++) {
+          var pt = pts[i];
+          var tText = document.getElementById('haworth-t' + i) ? document.getElementById('haworth-t' + i).value : '';
+          var bText = document.getElementById('haworth-b' + i) ? document.getElementById('haworth-b' + i).value : '';
+          svg += drawSubstituent(pt.x, pt.y, tText, bText);
+        }
+
+      } else if (type === 'furanose') {
+        // Pentagon coordinates
+        var pts = [
+          {x: cx + 50, y: cy},      // C1 (right)
+          {x: cx + 20, y: cy + 30}, // C2 (bottom right)
+          {x: cx - 20, y: cy + 30}, // C3 (bottom left)
+          {x: cx - 50, y: cy},      // C4 (left)
+          {x: cx, y: cy - 35}       // O (top)
+        ];
+
+        // Draw Ring
+        svg += '<polygon points="' + pts[0].x+','+pts[0].y + ' ' + pts[1].x+','+pts[1].y + ' ' + pts[2].x+','+pts[2].y + ' ' + pts[3].x+','+pts[3].y + ' ' + pts[4].x+','+pts[4].y + '" fill="none" class="line"/>';
+        // Bold front bond
+        svg += '<line class="bold-line" x1="'+pts[1].x+'" y1="'+pts[1].y+'" x2="'+pts[2].x+'" y2="'+pts[2].y+'" />';
+
+        // Oxygen atom
+        svg += '<circle cx="'+pts[4].x+'" cy="'+pts[4].y+'" r="12" fill="#fff" />';
+        svg += '<text x="'+pts[4].x+'" y="'+pts[4].y+'">O</text>';
+
+        // C1 Anomeric
+        var c1T = anomer === 'beta' ? 'OH' : 'H';
+        var c1B = anomer === 'beta' ? 'H' : 'OH';
+        svg += drawSubstituent(pts[0].x, pts[0].y, c1T, c1B);
+
+        // C2 to C4 Substituents
+        for (var i = 1; i <= 3; i++) {
+          var pt = pts[i];
+          var tText = document.getElementById('haworth-t' + i) ? document.getElementById('haworth-t' + i).value : '';
+          var bText = document.getElementById('haworth-b' + i) ? document.getElementById('haworth-b' + i).value : '';
+          svg += drawSubstituent(pt.x, pt.y, tText, bText);
+        }
       }
 
       svg += '</svg>';
       document.getElementById('haworth-preview').innerHTML = svg;
     }
 
-    function getHaworthVal(prefix, idx) {
-      var el = document.getElementById(prefix + idx);
-      return el ? el.value : '';
-    }
-
-    function drawPyranose(anomer, w, h) {
-      var cx = w / 2, cy = h / 2 + 10;
-      // Ring vertices (hexagonal, perspective-like)
-      var pts = [
-        { x: cx + 90, y: cy - 55 },   // 0: O (top-right)
-        { x: cx + 110, y: cy + 25 },  // 1: C1 (right)
-        { x: cx + 60, y: cy + 85 },   // 2: C2 (bottom-right)
-        { x: cx - 60, y: cy + 85 },   // 3: C3 (bottom-left)
-        { x: cx - 110, y: cy + 25 },  // 4: C4 (left)
-        { x: cx - 90, y: cy - 55 }    // 5: C5 (top-left)
-      ];
-
-      var s = '';
-      // Draw ring edges
-      for (var i = 0; i < 6; i++) {
-        var j = (i + 1) % 6;
-        var thick = (i === 2 || i === 3) ? 4 : 2; // Front edges thicker
-        s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[j].x + '" y2="' + pts[j].y + '" stroke="black" stroke-width="' + thick + '"/>';
+    function drawSubstituent(x, y, topText, bottomText) {
+      var html = '';
+      if (topText) {
+        html += '<line class="bond" x1="'+x+'" y1="'+y+'" x2="'+x+'" y2="'+(y-25)+'" />';
+        html += '<text x="'+x+'" y="'+(y-35)+'" font-size="14">' + topText + '</text>';
       }
-
-      // O label
-      s += '<text x="' + (pts[0].x + 5) + '" y="' + (pts[0].y - 8) + '" text-anchor="middle" font-size="18" font-weight="bold" fill="#e11d48">O</text>';
-
-      // Substituents for C1-C4 (ring carbons)
-      var bondLen = 35;
-      var carbonPositions = [
-        { pt: pts[1], label: 'C1' },  // C1
-        { pt: pts[2], label: 'C2' },  // C2
-        { pt: pts[3], label: 'C3' },  // C3
-        { pt: pts[4], label: 'C4' }   // C4
-      ];
-
-      for (var ci = 0; ci < carbonPositions.length; ci++) {
-        var cp = carbonPositions[ci].pt;
-        var upVal = getHaworthVal('haworth-up-', ci);
-        var downVal = getHaworthVal('haworth-down-', ci);
-
-        // For C1, handle anomeric (alpha/beta)
-        if (ci === 0) {
-          if (anomer === 'alpha') {
-            downVal = upVal || 'OH';
-            upVal = downVal === 'OH' ? 'H' : getHaworthVal('haworth-up-', 0);
-            // Actually use the dropdown values but swap if anomeric
-            upVal = getHaworthVal('haworth-up-', 0);
-            downVal = getHaworthVal('haworth-down-', 0);
-          }
-        }
-
-        // Up bond + label
-        if (upVal) {
-          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y - bondLen) + '" stroke="black" stroke-width="2"/>';
-          s += '<text x="' + cp.x + '" y="' + (cp.y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(upVal) + '</text>';
-        }
-        // Down bond + label
-        if (downVal) {
-          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y + bondLen) + '" stroke="black" stroke-width="2"/>';
-          s += '<text x="' + cp.x + '" y="' + (cp.y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(downVal) + '</text>';
-        }
+      if (bottomText) {
+        html += '<line class="bond" x1="'+x+'" y1="'+y+'" x2="'+x+'" y2="'+(y+25)+'" />';
+        html += '<text x="'+x+'" y="'+(y+35)+'" font-size="14">' + bottomText + '</text>';
       }
-
-      // C5 substituents (top-left position)
-      var c5up = getHaworthVal('haworth-up-', 4);
-      var c5down = getHaworthVal('haworth-down-', 4);
-      if (c5up) {
-        s += '<line x1="' + pts[5].x + '" y1="' + pts[5].y + '" x2="' + pts[5].x + '" y2="' + (pts[5].y - bondLen) + '" stroke="black" stroke-width="2"/>';
-        s += '<text x="' + pts[5].x + '" y="' + (pts[5].y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c5up) + '</text>';
-      }
-      if (c5down) {
-        s += '<line x1="' + pts[5].x + '" y1="' + pts[5].y + '" x2="' + pts[5].x + '" y2="' + (pts[5].y + bondLen) + '" stroke="black" stroke-width="2"/>';
-        s += '<text x="' + pts[5].x + '" y="' + (pts[5].y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c5down) + '</text>';
-      }
-
-      // C6 (exocyclic - attached to C5)
-      var c6up = getHaworthVal('haworth-up-', 5);
-      if (c6up) {
-        var c6x = pts[5].x - 30;
-        var c6y = pts[5].y - bondLen;
-        s += '<line x1="' + pts[5].x + '" y1="' + pts[5].y + '" x2="' + c6x + '" y2="' + c6y + '" stroke="black" stroke-width="2"/>';
-        s += '<text x="' + c6x + '" y="' + (c6y - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c6up) + '</text>';
-      }
-
-      return s;
-    }
-
-    function drawFuranose(anomer, w, h) {
-      var cx = w / 2, cy = h / 2 + 10;
-      // Pentagon ring
-      var pts = [
-        { x: cx + 80, y: cy - 60 },   // 0: O (top-right)
-        { x: cx + 110, y: cy + 30 },  // 1: C1 (right)
-        { x: cx + 40, y: cy + 90 },   // 2: C2 (bottom-right)
-        { x: cx - 40, y: cy + 90 },   // 3: C3 (bottom-left)
-        { x: cx - 110, y: cy + 30 }   // 4: C4 (left)
-      ];
-
-      var s = '';
-      // Draw ring edges
-      for (var i = 0; i < 5; i++) {
-        var j = (i + 1) % 5;
-        var thick = (i === 2 || i === 3) ? 4 : 2;
-        // Close the ring: from C4 back to O
-        if (i === 4) j = 0;
-        s += '<line x1="' + pts[i].x + '" y1="' + pts[i].y + '" x2="' + pts[j].x + '" y2="' + pts[j].y + '" stroke="black" stroke-width="' + thick + '"/>';
-      }
-
-      // O label
-      s += '<text x="' + (pts[0].x + 5) + '" y="' + (pts[0].y - 8) + '" text-anchor="middle" font-size="18" font-weight="bold" fill="#e11d48">O</text>';
-
-      // Substituents for C1-C3
-      var bondLen = 35;
-      for (var ci = 0; ci < 3; ci++) {
-        var cp = pts[ci + 1];
-        var upVal = getHaworthVal('haworth-up-', ci);
-        var downVal = getHaworthVal('haworth-down-', ci);
-
-        if (upVal) {
-          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y - bondLen) + '" stroke="black" stroke-width="2"/>';
-          s += '<text x="' + cp.x + '" y="' + (cp.y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(upVal) + '</text>';
-        }
-        if (downVal) {
-          s += '<line x1="' + cp.x + '" y1="' + cp.y + '" x2="' + cp.x + '" y2="' + (cp.y + bondLen) + '" stroke="black" stroke-width="2"/>';
-          s += '<text x="' + cp.x + '" y="' + (cp.y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(downVal) + '</text>';
-        }
-      }
-
-      // C4 substituents
-      var c4up = getHaworthVal('haworth-up-', 3);
-      var c4down = getHaworthVal('haworth-down-', 3);
-      if (c4up) {
-        s += '<line x1="' + pts[4].x + '" y1="' + pts[4].y + '" x2="' + pts[4].x + '" y2="' + (pts[4].y - bondLen) + '" stroke="black" stroke-width="2"/>';
-        s += '<text x="' + pts[4].x + '" y="' + (pts[4].y - bondLen - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c4up) + '</text>';
-      }
-      if (c4down) {
-        s += '<line x1="' + pts[4].x + '" y1="' + pts[4].y + '" x2="' + pts[4].x + '" y2="' + (pts[4].y + bondLen) + '" stroke="black" stroke-width="2"/>';
-        s += '<text x="' + pts[4].x + '" y="' + (pts[4].y + bondLen + 16) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c4down) + '</text>';
-      }
-
-      // C5 (exocyclic - attached to C4)
-      var c5up = getHaworthVal('haworth-up-', 4);
-      if (c5up) {
-        var c5x = pts[4].x - 30;
-        var c5y = pts[4].y - bondLen;
-        s += '<line x1="' + pts[4].x + '" y1="' + pts[4].y + '" x2="' + c5x + '" y2="' + c5y + '" stroke="black" stroke-width="2"/>';
-        s += '<text x="' + c5x + '" y="' + (c5y - 5) + '" text-anchor="middle" font-size="13" font-weight="bold">' + escSvg(c5up) + '</text>';
-      }
-
-      return s;
+      return html;
     }
 
     /* ========================================
-       Export & Upload
+       Initialization & Setup
+    ======================================== */
+    document.addEventListener('DOMContentLoaded', function() {
+      // Setup inputs for Fischer & Haworth when page loads
+      document.getElementById('fischer-chain-length').addEventListener('change', generateFischerInputs);
+      generateFischerInputs();
+      renderFischer();
+
+      document.getElementById('haworth-ring-type').addEventListener('change', generateHaworthInputs);
+      generateHaworthInputs();
+      renderHaworth();
+    });
+
+
+    /* ========================================
+       Export & Upload Logic
     ======================================== */
     async function exportAndUpload() {
       var btn = document.getElementById('export-btn');
       var status = document.getElementById('export-status');
+      
       btn.disabled = true;
-      status.className = 'export-status loading';
+      status.className = 'export-status';
+      status.style.display = 'block';
       status.textContent = '⏳ 画像を生成中...';
 
       try {
         var blob = await generatePngBlob();
         if (!blob) throw new Error('画像の生成に失敗しました');
 
-        status.textContent = '⏳ Googleドライブにアップロード中...';
-
+        status.textContent = '⏳ ダッシュボードへ転送中...';
+        
         var formData = new FormData();
-        var file = new File([blob], 'formula.png', { type: 'image/png' });
-        formData.append('image_file', file);
+        // Since this page is standalone, it talks to the Node.js API endpoint we'll create
+        formData.append('image_file', blob, 'formula.png');
 
         var response = await fetch('/api/upload-image-single', { method: 'POST', body: formData });
         var data = await response.json();
 
         if (response.ok && data.url) {
           status.className = 'export-status success';
-          status.textContent = '✅ アップロード完了！';
-          document.getElementById('url-result').style.display = 'block';
+          status.innerHTML = '✅ <b>成功！</b> 画像プールに転送されました。<br><a href="/" target="_blank" style="color:#166534;">ダッシュボードに戻って「プールから選ぶ」を押してください。</a>';
         } else {
           throw new Error(data.error || 'アップロードに失敗しました');
         }
@@ -814,38 +566,19 @@
         var img = new Image();
         img.onload = function() {
           var canvas = document.createElement('canvas');
-          canvas.width = img.width * 3;
-          canvas.height = img.height * 3;
+          canvas.width = img.width * 2;
+          canvas.height = img.height * 2;
           var ctx = canvas.getContext('2d');
-          ctx.scale(3, 3);
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob(function(blob) { resolve(blob); }, 'image/png');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
+          canvas.toBlob(resolve, 'image/png');
         };
-        img.onerror = function() {
-          URL.revokeObjectURL(url);
-          reject(new Error('SVGの画像変換に失敗しました'));
-        };
+        img.onerror = reject;
         img.src = url;
       });
     }
-
-
-
-    /* ========================================
-       Initialization
-    ======================================== */
-    document.addEventListener('DOMContentLoaded', function() {
-      // Wait for KaTeX to load, then setup
-      setTimeout(function() {
-        rebuildFischerInputs();
-        updateFischerPreview();
-        rebuildHaworthInputs();
-        updateHaworthPreview();
-      }, 300);
-    });
   </script>
 </body>
 </html>
